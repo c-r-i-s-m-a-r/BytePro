@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BytePro — Tecnología con compra segura y garantizada</title>
+  <meta name="description" content="BytePro: ecommerce de productos tecnológicos con checkout rápido, garantía real y seguridad verificable.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230284c7'/><text y='66' x='50' font-size='46' font-weight='900' fill='white' text-anchor='middle'>BP</text></svg>">
+</head>
+<body>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <header class="navbar" id="navbar">
+    <a class="nav-brand" href="#top" aria-label="BytePro inicio">
+      <span class="brand-logo">BP</span>
+      <span>Byte<em>Pro</em></span>
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Navegación principal">
+      <a href="#ventajas">Ventajas</a>
+      <a href="#seguridad">Seguridad</a>
+      <a href="#catalogo">Catálogo</a>
+      <a href="#opiniones">Opiniones</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="api-pill" id="apiPill" type="button" title="Estado del backend">● comprobando…</button>
+      <a class="btn btn-ghost" href="../frontend/#/login">Entrar</a>
+      <a class="btn btn-primary magnetic" href="../frontend/#/register">Crear cuenta</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true">
+        <span class="blob blob-a"></span>
+        <span class="blob blob-b"></span>
+        <span class="blob blob-c"></span>
+        <span class="hero-grid"></span>
+      </div>
+      <div class="container hero-inner">
+        <div class="hero-copy reveal">
+          <p class="eyebrow"><span class="dot"></span> Ecommerce tecnológico · Nuevo</p>
+          <h1>Compra tecnología <span class="grad">rápido</span> y con total <span class="typing-slot"><span class="typing" id="typing">seguridad</span></span><span class="caret" aria-hidden="true">|</span></h1>
+          <p class="lead">Catálogo tech curado, precios claros y garantía real. Y por dentro, sesiones protegidas, roles controlados y datos cifrados que puedes verificar.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg magnetic" href="#catalogo">Ver catálogo</a>
+            <a class="btn btn-dark btn-lg magnetic" href="../frontend/#/register">Crear cuenta gratis</a>
+          </div>
+          <div class="hero-badges">
+            <span>✓ Garantía 12 meses</span>
+            <span>✓ Devolución 30 días</span>
+            <span>✓ Hash scrypt</span>
+          </div>
+          <dl class="hero-stats">
+            <div><dt data-count="1200" data-suffix="+">0</dt><dd>clientes felices</dd></div>
+            <div><dt data-count="49" data-prefix="4." data-decimals="1">0</dt><dd>valoración / 5</dd></div>
+            <div><dt data-count="24" data-suffix="h">0</dt><dd>sesión protegida</dd></div>
+          </dl>
+        </div>
+        <div class="hero-visual reveal" data-delay="150">
+          <div class="mockup tilt" id="heroMockup">
+            <div class="mockup-bar"><span></span><span></span><span></span><em>app.bytepro · dashboard</em></div>
+            <div class="mockup-body">
+              <div class="mock-row"><strong>● Sesión activa</strong><span class="tag ok">Bearer válido</span></div>
+              <div class="mock-row"><strong>Rol: customer</strong><span class="tag">catálogo + perfil</span></div>
+              <div class="mock-row"><strong>Rol: admin</strong><span class="tag admin">CRUD usuarios</span></div>
+              <div class="mock-skeleton"><i style="width:82%"></i><i style="width:64%"></i><i style="width:74%"></i></div>
+              <div class="mock-foot"><span>🔒 scrypt</span><span>🛡️ RBAC</span><span>⏱ 24h</span></div>
+            </div>
+            <div class="float-chip chip-1">✓ Pago protegido</div>
+            <div class="float-chip chip-2">⚡ Envío 24/48h</div>
+          </div>
+        </div>
+      </div>
+      <a class="scroll-hint" href="#confianza" aria-label="Bajar a beneficios">↓</a>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee" id="confianza" aria-hidden="true">
+      <div class="marquee-track">
+        <span>🚚 Envío seguro</span><span>🔒 Pago protegido</span><span>🛡️ Garantía 12 meses</span><span>↩️ Devolución 30 días</span><span>💬 Soporte experto</span><span>⚡ Stock verificado</span>
+        <span>🚚 Envío seguro</span><span>🔒 Pago protegido</span><span>🛡️ Garantía 12 meses</span><span>↩️ Devolución 30 días</span><span>💬 Soporte experto</span><span>⚡ Stock verificado</span>
+      </div>
+    </div>
+
+    <!-- VENTAJAS -->
+    <section class="section" id="ventajas">
+      <div class="container">
+        <p class="eyebrow center reveal">Ventajas como ecommerce</p>
+        <h2 class="reveal">Todo lo que esperas de una gran tienda tech</h2>
+        <p class="sub reveal">Sin letra pequeña: lo que ves es lo que pagas, y lo que compras está respaldado.</p>
+        <div class="grid-3">
+          <article class="card spot reveal"><h3>🖥️ Catálogo curado</h3><p>Laptops, periféricos y componentes verificados. Sin relleno, solo lo que vale la pena.</p></article>
+          <article class="card spot reveal" data-delay="80"><h3>🏷️ Precios claros</h3><p>Ofertas reales sin costos ocultos. La garantía ya viene incluida.</p></article>
+          <article class="card spot reveal" data-delay="160"><h3>⚡ Compra en minutos</h3><p>Registro simple, sesión persistente y checkout guiado paso a paso.</p></article>
+          <article class="card spot reveal"><h3>📦 Seguimiento total</h3><p>Sabes dónde está tu pedido en todo momento y quién te ayuda.</p></article>
+          <article class="card spot reveal" data-delay="80"><h3>↩️ Garantía y devolución</h3><p>30 días de devolución y 12 meses de garantía en productos seleccionados.</p></article>
+          <article class="card spot reveal" data-delay="160"><h3>💬 Soporte experto</h3><p>Ayuda de gente técnica de verdad, no respuestas automáticas.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEGURIDAD -->
+    <section class="section section-soft" id="seguridad">
+      <div class="container">
+        <p class="eyebrow center reveal">Beneficio diferencial</p>
+        <h2 class="reveal">Seguridad que puedes comprobar, no solo prometer</h2>
+        <p class="sub reveal">Cada punto está implementado en el backend Flask y el frontend Vue. Pruébalo con <code>admin / Admin123!</code>.</p>
+        <div class="grid-3">
+          <article class="card sec spot tilt reveal"><span class="sec-ico">🔑</span><h3>Acceso protegido</h3><p>Login con validación viva: usuario 3+, contraseña 8+ con letra, número y símbolo.</p><a href="../frontend/#/login">Probar login →</a></article>
+          <article class="card sec spot tilt reveal" data-delay="80"><span class="sec-ico">🛡️</span><h3>Roles controlados</h3><p><code>admin</code> gestiona, <code>customer</code> compra. La ruta <code>/#/admin</code> devuelve 403 si no eres admin.</p><a href="../frontend/#/admin">Ver guarda RBAC →</a></article>
+          <article class="card sec spot tilt reveal" data-delay="160"><span class="sec-ico">⏱️</span><h3>Sesiones seguras</h3><p>Token Bearer de 64 caracteres, válido 24h. El logout lo invalida en el servidor.</p><a href="../frontend/#/login">Ver sesión →</a></article>
+          <article class="card sec spot tilt reveal"><span class="sec-ico">🔒</span><h3>Datos cifrados</h3><p>Contraseñas con hash <code>scrypt</code>, nunca en claro. Unicidad de usuario y email en SQLite.</p><a href="#faq">Cómo se guarda →</a></article>
+          <article class="card sec spot tilt reveal" data-delay="80"><span class="sec-ico">🧾</span><h3>Admin auditado</h3><p>CRUD completo de usuarios, sin auto-borrado de <code>admin</code> y activación en 1 clic.</p><a href="../frontend/#/admin">Abrir panel →</a></article>
+          <article class="card sec spot tilt reveal" data-delay="160"><span class="sec-ico">🧪</span><h3>Modo Demo Local</h3><p>Prueba login, registro y CRUD sin backend, persistido en <code>localStorage</code>.</p><a href="../frontend/#/">Probar demo →</a></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section class="section" id="como">
+      <div class="container">
+        <p class="eyebrow center reveal">Cómo funciona</p>
+        <h2 class="reveal">De la visita a tu escritorio en 3 pasos</h2>
+        <div class="steps">
+          <span class="steps-line" id="stepsLine" aria-hidden="true"></span>
+          <article class="step reveal"><span class="step-n">1</span><h3>Crea tu cuenta</h3><p>Registro en 30 segundos con validación en vivo.</p></article>
+          <article class="step reveal" data-delay="120"><span class="step-n">2</span><h3>Explora el catálogo</h3><p>Filtra por categoría, compara y elige con garantía.</p></article>
+          <article class="step reveal" data-delay="240"><span class="step-n">3</span><h3>Compra protegida</h3><p>Sesión segura, seguimiento y soporte experto.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATALOGO -->
+    <section class="section section-soft" id="catalogo">
+      <div class="container">
+        <p class="eyebrow center reveal">Escaparate</p>
+        <h2 class="reveal">Destacados de la semana</h2>
+        <p class="sub reveal">Muestra estática — la tienda funcional vive en el frontend.</p>
+        <div class="grid-4">
+          <article class="card product reveal"><span class="badge">-15%</span><div class="p-img" aria-hidden="true">💻</div><h3>Laptop Pro 14"</h3><p class="muted">Ryzen 7 · 16GB · 512GB SSD</p><p class="price">$899 <s>$1,059</s></p><button class="btn btn-primary btn-block add-btn" data-name="Laptop Pro 14&quot;" type="button">Añadir</button></article>
+          <article class="card product reveal" data-delay="80"><span class="badge hot">Top</span><div class="p-img" aria-hidden="true">⌨️</div><h3>Teclado Mecánico 75%</h3><p class="muted">Hot-swap · RGB · Español</p><p class="price">$79 <s>$99</s></p><button class="btn btn-primary btn-block add-btn" data-name="Teclado Mecánico" type="button">Añadir</button></article>
+          <article class="card product reveal" data-delay="160"><span class="badge">Nuevo</span><div class="p-img" aria-hidden="true">🎧</div><h3>Auriculares Studio</h3><p class="muted">ANC · 40h batería</p><p class="price">$129 <s>$159</s></p><button class="btn btn-primary btn-block add-btn" data-name="Auriculares Studio" type="button">Añadir</button></article>
+          <article class="card product reveal" data-delay="240"><span class="badge">-20%</span><div class="p-img" aria-hidden="true">🖱️</div><h3>Mouse Precision</h3><p class="muted">26K DPI · 90h · Ultraligero</p><p class="price">$49 <s>$61</s></p><button class="btn btn-primary btn-block add-btn" data-name="Mouse Precision" type="button">Añadir</button></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- OPINIONES -->
+    <section class="section" id="opiniones">
+      <div class="container">
+        <p class="eyebrow center reveal">Opiniones</p>
+        <h2 class="reveal">Clientes que ya confían</h2>
+        <div class="grid-3">
+          <figure class="card quote reveal"><blockquote>"Me registré en un minuto y el pedido llegó en 48h. Se nota que la plataforma es seria."</blockquote><figcaption>★★★★★ · Camila R. — Compradora</figcaption></figure>
+          <figure class="card quote reveal" data-delay="100"><blockquote>"Como admin gestiono usuarios y roles sin fricción. El control de acceso está bien resuelto."</blockquote><figcaption>★★★★★ · Diego M. — Administrador</figcaption></figure>
+          <figure class="card quote reveal" data-delay="200"><blockquote>"El modo demo me convenció: probé todo sin instalar nada antes de crear mi cuenta."</blockquote><figcaption>★★★★★ · Valeria T. — Estudiante</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section section-soft" id="faq">
+      <div class="container narrow">
+        <p class="eyebrow center reveal">Dudas frecuentes</p>
+        <h2 class="reveal">Preguntas sobre seguridad</h2>
+        <div class="faq reveal">
+          <details open><summary>¿Cómo se guardan mis contraseñas?</summary><p>Con hash <code>scrypt</code> de Werkzeug. Nunca se almacenan en claro y se exigen 8+ caracteres con letra, número y símbolo.</p></details>
+          <details><summary>¿Qué pasa si cierro sesión?</summary><p>El token Bearer se invalida en el servidor (<code>/api/auth/logout</code>). Aunque alguien lo copie, deja de funcionar.</p></details>
+          <details><summary>¿Un cliente puede entrar al panel admin?</summary><p>No. El frontend oculta el enlace y la guarda del router redirige a <code>/#/forbidden</code>; el backend responde 403.</p></details>
+          <details><summary>¿Puedo probar sin backend?</summary><p>Sí. Activa el Modo Demo Local: simula login, registro y CRUD con persistencia en tu navegador.</p></details>
+          <details><summary>¿Dónde está la tienda real?</summary><p>En <code>frontend/</code> (Vue 3) conectada a <code>backend/</code> (Flask). Esta landing es el escaparate.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container cta-inner reveal">
+        <h2>Tu próxima compra tech, protegida desde el primer clic</h2>
+        <p>Únete a BytePro gratis. Sin tarjeta, sin compromiso.</p>
+        <div class="hero-cta center">
+          <a class="btn btn-light btn-lg magnetic" href="../frontend/#/register">Crear cuenta gratis</a>
+          <a class="btn btn-outline-light btn-lg magnetic" href="../frontend/#/login">Ya tengo cuenta</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div><span class="brand-logo sm">BP</span><strong> BytePro</strong><p class="muted">Ecommerce tecnológico con seguridad verificable.</p></div>
+      <nav aria-label="Enlaces"><a href="#ventajas">Ventajas</a><a href="#seguridad">Seguridad</a><a href="#catalogo">Catálogo</a><a href="../frontend/#/">Abrir app</a></nav>
+      <p class="muted small">© 2026 BytePro · SIS324 · Hecho con HTML+CSS+JS local, sin dependencias externas.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <button class="to-top" id="toTop" aria-label="Volver arriba" type="button">↑</button>
+  <script src="app.js"></script>
+</body>
+</html>
