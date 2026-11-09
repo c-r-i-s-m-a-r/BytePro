@@ -48,8 +48,6 @@
       <p class="auth-footer">
         <RouterLink :to="{ name: 'login' }">Soy cliente</RouterLink>
       </p>
-
-      <div class="alert mt-4">Demo: admin@bytepro.com / Admin1234</div>
     </div>
   </div>
 </template>
