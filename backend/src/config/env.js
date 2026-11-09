@@ -16,7 +16,7 @@ module.exports = {
   dbStorage: resolveStorage(process.env.DB_STORAGE),
   pageSizeDefault: parseInt(process.env.PAGE_SIZE_DEFAULT || '12', 10),
   pageSizeMax: parseInt(process.env.PAGE_SIZE_MAX || '24', 10),
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: process.env.CORS_ORIGIN || '*',
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10),
   taxRate: parseFloat(process.env.TAX_RATE || '0.13'),
