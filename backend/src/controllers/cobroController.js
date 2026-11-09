@@ -1,4 +1,5 @@
 const cobroService = require('../services/cobroService');
+const empresaService = require('../services/empresaService');
 const AppError = require('../utils/AppError');
 
 async function metodos(req, res, next) {
@@ -66,4 +67,34 @@ async function recibo(req, res, next) {
   }
 }
 
-module.exports = { metodos, checkout, pagar, venta, recibo };
+async function actualizarEntrega(req, res, next) {
+  try {
+    const body = req.body || {};
+    if (!body.ventaId) {
+      throw new AppError('Se requiere el identificador de la venta', 400);
+    }
+    const data = await cobroService.actualizarEntrega(req.user, body);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function sucursales(req, res, next) {
+  try {
+    const items = await empresaService.listarSucursalesActivas();
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  metodos,
+  checkout,
+  pagar,
+  actualizarEntrega,
+  sucursales,
+  venta,
+  recibo,
+};

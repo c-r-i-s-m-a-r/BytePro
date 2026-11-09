@@ -46,6 +46,15 @@
           Dashboard y KPIs
         </RouterLink>
 
+        <!-- Tablón de comunicados: lectura para todo el personal -->
+        <RouterLink
+          to="/admin/comunicados"
+          class="admin-nav-link"
+          :class="{ active: route.name === 'admin-comunicados' }"
+        >
+          Comunicados Internos
+        </RouterLink>
+
         <!-- Función vendedor: Resumen y Productos -->
         <RouterLink
           v-if="esAdmin || puedeVendedor"
@@ -99,6 +108,13 @@
             :class="{ active: route.name === 'admin-auditoria' }"
           >
             Cobros y Auditoría
+          </RouterLink>
+          <RouterLink
+            to="/admin/ajustes"
+            class="admin-nav-link"
+            :class="{ active: route.name === 'admin-ajustes' }"
+          >
+            Ajustes de Empresa
           </RouterLink>
         </template>
       </aside>

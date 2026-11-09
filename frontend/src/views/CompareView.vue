@@ -44,9 +44,24 @@
             <th v-for="producto in compare.result.productos" :key="producto.id">
               <div class="compare-product-name">{{ producto.nombre }}</div>
               <div class="muted">{{ producto.marca }}</div>
-              <button class="btn btn-danger btn-sm mt-2" type="button" @click="remove(producto.id)">
-                Quitar
-              </button>
+              <div class="compare-actions">
+                <button
+                  class="btn btn-primary btn-sm"
+                  type="button"
+                  :disabled="!varianteDisponible(producto) || agregandoId === producto.id"
+                  @click="agregarAlCarrito(producto)"
+                >
+                  <AppIcon name="cart-add" :size="15" />
+                  {{ agregandoId === producto.id ? 'Agregando…' : 'Añadir al carrito' }}
+                </button>
+                <button
+                  class="btn btn-danger btn-sm"
+                  type="button"
+                  @click="remove(producto.id)"
+                >
+                  Quitar
+                </button>
+              </div>
             </th>
           </tr>
         </thead>
@@ -64,14 +79,40 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import AppIcon from '../components/AppIcon.vue';
+import { useCartStore } from '../store/cart';
 import { useCompareStore } from '../store/compare';
 import { useUiStore } from '../store/ui';
 import { formatPrice } from '../utils/format';
 
 const compare = useCompareStore();
+const cart = useCartStore();
 const ui = useUiStore();
+const agregandoId = ref(null);
+
+function varianteDisponible(producto) {
+  const variantes = producto.variantes || [];
+  return variantes.find((variante) => variante.disponible) || null;
+}
+
+async function agregarAlCarrito(producto) {
+  const variante = varianteDisponible(producto);
+  if (!variante) {
+    ui.warning('Este producto no tiene stock disponible.');
+    return;
+  }
+  agregandoId.value = producto.id;
+  try {
+    await cart.add(variante.id, 1);
+    ui.openCartDrawer();
+  } catch (err) {
+    // El store ya notifica el error.
+  } finally {
+    agregandoId.value = null;
+  }
+}
 
 function displayValue(tipo, valor) {
   if (valor === null || valor === undefined || valor === '') return '—';
@@ -103,3 +144,19 @@ onMounted(() => {
   if (compare.count >= 2) compare.fetchComparison();
 });
 </script>
+
+<style scoped>
+.compare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.compare-actions .btn {
+  width: 100%;
+  height: 38px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+</style>

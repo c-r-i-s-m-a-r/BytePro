@@ -8,6 +8,7 @@ const {
   Variante,
   Despacho,
   Recibo,
+  Categoria,
 } = require('../models');
 const cobroService = require('../services/cobroService');
 const almacenService = require('../services/almacenService');
@@ -95,6 +96,220 @@ async function calcularResumenEjecutivo() {
 async function resumen(req, res, next) {
   try {
     const data = await calcularResumenEjecutivo();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const MESES_CORTOS = [
+  'Ene',
+  'Feb',
+  'Mar',
+  'Abr',
+  'May',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dic',
+];
+
+async function calcularAnalitica(granularidad = 'mes') {
+  const normalizada = String(granularidad || 'mes')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const escala =
+    normalizada === 'ano' || normalizada === 'anio'
+      ? 'anio'
+      : ['dia', 'mes'].includes(normalizada)
+        ? normalizada
+        : 'mes';
+  const ahora = new Date();
+
+  const where = {
+    estado: { [Op.notIn]: ['pendiente', 'cancelada', 'CANCELADO'] },
+  };
+
+  if (escala === 'dia') {
+    where.createdAt = {
+      [Op.gte]: new Date(ahora.getFullYear(), ahora.getMonth(), 1),
+      [Op.lt]: new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1),
+    };
+  } else if (escala === 'mes') {
+    where.createdAt = {
+      [Op.gte]: new Date(ahora.getFullYear(), 0, 1),
+      [Op.lt]: new Date(ahora.getFullYear() + 1, 0, 1),
+    };
+  }
+
+  const ventas = await Venta.findAll({
+    where,
+    include: [
+      {
+        model: VentaItem,
+        as: 'items',
+        include: [
+          {
+            model: Variante,
+            as: 'variante',
+            include: [
+              {
+                model: Producto,
+                as: 'producto',
+                include: [
+                  { model: Categoria, as: 'categoria', attributes: ['id', 'nombre'] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    order: [['createdAt', 'ASC']],
+  });
+
+  const buckets = new Map();
+
+  if (escala === 'dia') {
+    const dias = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0).getDate();
+    for (let dia = 1; dia <= dias; dia += 1) {
+      buckets.set(dia, { etiqueta: String(dia), ventas: 0, ingresos: 0, demanda: 0 });
+    }
+  } else if (escala === 'mes') {
+    MESES_CORTOS.forEach((mes, indice) => {
+      buckets.set(indice, { etiqueta: mes, ventas: 0, ingresos: 0, demanda: 0 });
+    });
+  } else {
+    const anios = ventas.map((venta) => new Date(venta.createdAt).getFullYear());
+    const anioMinimo = anios.length ? Math.min(...anios) : ahora.getFullYear();
+    const anioMaximo = Math.max(ahora.getFullYear(), ...anios);
+    for (let anio = anioMinimo; anio <= anioMaximo; anio += 1) {
+      buckets.set(anio, { etiqueta: String(anio), ventas: 0, ingresos: 0, demanda: 0 });
+    }
+  }
+
+  const productosMap = new Map();
+  const categoriasMap = new Map();
+  let totalVentas = 0;
+  let totalIngresos = 0;
+  let totalDemanda = 0;
+
+  for (const venta of ventas) {
+    const fecha = new Date(venta.createdAt);
+    const clave =
+      escala === 'dia'
+        ? fecha.getDate()
+        : escala === 'mes'
+          ? fecha.getMonth()
+          : fecha.getFullYear();
+    const bucket = buckets.get(clave);
+    const montoVenta = Number(venta.total) || 0;
+
+    totalVentas += 1;
+    totalIngresos += montoVenta;
+    if (bucket) {
+      bucket.ventas += 1;
+      bucket.ingresos += montoVenta;
+    }
+
+    for (const item of venta.items || []) {
+      const cantidad = Number(item.cantidad) || 0;
+      const montoItem = cantidad * (Number(item.precioUnitario) || 0);
+      const producto = item.variante ? item.variante.producto : null;
+      const categoria = producto ? producto.categoria : null;
+
+      totalDemanda += cantidad;
+      if (bucket) bucket.demanda += cantidad;
+
+      const claveProducto = producto ? producto.id : `variante-${item.varianteId}`;
+      if (!productosMap.has(claveProducto)) {
+        productosMap.set(claveProducto, {
+          productoId: producto ? producto.id : null,
+          nombre:
+            (producto && producto.nombre) ||
+            (item.variante && item.variante.nombre) ||
+            'Producto',
+          categoria: (categoria && categoria.nombre) || 'Sin categoría',
+          unidades: 0,
+          ingresos: 0,
+        });
+      }
+      const productoResumen = productosMap.get(claveProducto);
+      productoResumen.unidades += cantidad;
+      productoResumen.ingresos += montoItem;
+
+      const claveCategoria = categoria ? categoria.id : 'sin-categoria';
+      if (!categoriasMap.has(claveCategoria)) {
+        categoriasMap.set(claveCategoria, {
+          categoriaId: categoria ? categoria.id : null,
+          nombre: (categoria && categoria.nombre) || 'Sin categoría',
+          unidades: 0,
+          ingresos: 0,
+        });
+      }
+      const categoriaResumen = categoriasMap.get(claveCategoria);
+      categoriaResumen.unidades += cantidad;
+      categoriaResumen.ingresos += montoItem;
+    }
+  }
+
+  const etiquetas = [];
+  const ventasSerie = [];
+  const ingresosSerie = [];
+  const demandaSerie = [];
+
+  for (const bucket of buckets.values()) {
+    etiquetas.push(bucket.etiqueta);
+    ventasSerie.push(bucket.ventas);
+    ingresosSerie.push(round2(bucket.ingresos));
+    demandaSerie.push(bucket.demanda);
+  }
+
+  const topProductos = [...productosMap.values()]
+    .map((producto) => ({ ...producto, ingresos: round2(producto.ingresos) }))
+    .sort((a, b) => b.unidades - a.unidades || b.ingresos - a.ingresos)
+    .slice(0, 10);
+
+  const demandaCategorias = [...categoriasMap.values()]
+    .map((categoria) => ({
+      ...categoria,
+      ingresos: round2(categoria.ingresos),
+      porcentaje:
+        totalDemanda > 0 ? round2((categoria.unidades / totalDemanda) * 100) : 0,
+    }))
+    .sort((a, b) => b.unidades - a.unidades);
+
+  return {
+    granularidad: escala,
+    periodo:
+      escala === 'dia' ? 'Mes actual' : escala === 'mes' ? 'Año actual' : 'Histórico anual',
+    moneda: 'BOB',
+    series: {
+      etiquetas,
+      ventas: ventasSerie,
+      ingresos: ingresosSerie,
+      demanda: demandaSerie,
+    },
+    totales: {
+      ventas: totalVentas,
+      ingresos: round2(totalIngresos),
+      demanda: totalDemanda,
+    },
+    topProductos,
+    demandaCategorias,
+    sinDatos: totalVentas === 0,
+  };
+}
+
+async function analitica(req, res, next) {
+  try {
+    const granularidad =
+      req.query.granularidad || req.query.escala || req.query.periodo || 'mes';
+    const data = await calcularAnalitica(granularidad);
     res.json(data);
   } catch (err) {
     next(err);
@@ -350,7 +565,14 @@ async function actualizarUsuario(req, res, next) {
 
     if (nombre) user.nombre = String(nombre).trim();
     if (telefono !== undefined) user.telefono = telefono ? String(telefono).trim() : null;
-    if (activo !== undefined) user.activo = Boolean(activo);
+    if (activo !== undefined) {
+      user.activo = Boolean(activo);
+      if (user.activo) {
+        // Desbloqueo manual: se reinician los contadores de seguridad.
+        user.intentosFallidos = 0;
+        user.bloqueadoHasta = null;
+      }
+    }
 
     if (Array.isArray(roles) && roles.length > 0) {
       user.roles = JSON.stringify(roles);
@@ -373,6 +595,8 @@ async function actualizarUsuario(req, res, next) {
 
     if (password && String(password).trim().length >= 6) {
       user.passwordHash = await hashPassword(String(password).trim());
+      user.intentosFallidos = 0;
+      user.bloqueadoHasta = null;
     }
 
     await user.save();
@@ -430,6 +654,7 @@ async function auditoria(req, res, next) {
 
 module.exports = {
   resumen,
+  analitica,
   inventario,
   alertasStock,
   pedidos,

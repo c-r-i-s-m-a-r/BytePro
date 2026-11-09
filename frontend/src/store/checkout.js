@@ -57,10 +57,29 @@ export const useCheckoutStore = defineStore('checkout', {
       state.session && Array.isArray(state.session.ciudadesCobertura)
         ? state.session.ciudadesCobertura
         : ['La Paz', 'El Alto', 'Cochabamba', 'Santa Cruz', 'Sucre', 'Oruro', 'Potosí', 'Tarija', 'Trinidad', 'Cobija'],
+    sucursales: (state) =>
+      state.session && Array.isArray(state.session.sucursales)
+        ? state.session.sucursales
+        : [],
+    configuracionRetiro: (state) =>
+      (state.session && state.session.configuracionRetiro) || {
+        descuentoRetiroAlto: 7,
+        descuentoRetiroBajo: 5,
+        umbralDescuentoRetiro: 500,
+      },
+    metodoEntrega: (state) =>
+      (state.session && state.session.metodoEntrega) || 'domicilio',
+    sucursal: (state) => (state.session ? state.session.sucursal : null),
     totales: (state) =>
       state.session
         ? {
             subtotal: state.session.subtotal,
+            descuentoRetiro: state.session.descuentoRetiro || 0,
+            descuentoPorcentaje: state.session.descuentoPorcentaje || 0,
+            baseImponible:
+              state.session.baseImponible !== undefined
+                ? state.session.baseImponible
+                : state.session.subtotal,
             impuestos: state.session.impuestos,
             total: state.session.total,
             moneda: state.session.moneda,
@@ -112,7 +131,7 @@ export const useCheckoutStore = defineStore('checkout', {
         this.loading = false;
       }
     },
-    async pagar({ metodo, datosPago, direccionEntrega }) {
+    async pagar({ metodo, datosPago, direccionEntrega, metodoEntrega, sucursalId }) {
       this.processing = true;
       this.error = null;
       this.errorDetails = null;
@@ -123,7 +142,14 @@ export const useCheckoutStore = defineStore('checkout', {
       try {
         const { data } = await api.post(
           '/cobros/pagar',
-          { ventaId, metodo, datosPago, direccionEntrega },
+          {
+            ventaId,
+            metodo,
+            datosPago,
+            direccionEntrega,
+            metodoEntrega,
+            sucursalId,
+          },
           { headers: { 'Idempotency-Key': key } }
         );
 
@@ -142,6 +168,25 @@ export const useCheckoutStore = defineStore('checkout', {
         throw err;
       } finally {
         this.processing = false;
+      }
+    },
+    async actualizarEntrega({ metodoEntrega, sucursalId, direccionEntrega }) {
+      if (!this.session) return null;
+      this.error = null;
+      this.errorDetails = null;
+      try {
+        const { data } = await api.patch('/cobros/checkout/entrega', {
+          ventaId: this.session.ventaId,
+          metodoEntrega,
+          sucursalId,
+          direccionEntrega,
+        });
+        this.session = data;
+        return data;
+      } catch (err) {
+        this.error = apiErrorMessage(err);
+        this.errorDetails = apiErrorDetails(err);
+        throw err;
       }
     },
     async cargarVenta(ventaId) {

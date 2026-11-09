@@ -17,6 +17,7 @@ const {
   Despacho,
   EventoAuditoria,
   Direccion,
+  Sucursal,
 } = require('../models');
 const AppError = require('../utils/AppError');
 const env = require('../config/env');
@@ -29,6 +30,7 @@ const emailService = require('./emailService');
 const auditoriaService = require('./auditoriaService');
 const almacenService = require('./almacenService');
 const distribucionService = require('./distribucionService');
+const empresaService = require('./empresaService');
 
 const METODOS_PAGO = [
   {
@@ -120,6 +122,8 @@ function serializarRecibo(recibo) {
     ventaId: recibo.ventaId,
     transaccionId: recibo.transaccionId,
     subtotal: Number(recibo.subtotal),
+    descuentoRetiro: Number(recibo.descuentoRetiro) || 0,
+    descuentoPorcentaje: Number(recibo.descuentoPorcentaje) || 0,
     impuestos: Number(recibo.impuestos),
     total: Number(recibo.total),
     moneda: recibo.moneda,
@@ -127,13 +131,23 @@ function serializarRecibo(recibo) {
     codigoTransaccion: recibo.codigoTransaccion,
     clienteNombre: recibo.clienteNombre,
     clienteEmail: recibo.clienteEmail,
+    metodoEntrega: recibo.metodoEntrega || 'domicilio',
+    sucursal: recibo.sucursalNombre
+      ? {
+          nombre: recibo.sucursalNombre,
+          ciudad: recibo.sucursalCiudad,
+          direccion: recibo.sucursalDireccion,
+          telefono: recibo.sucursalTelefono,
+          horarios: recibo.sucursalHorarios,
+        }
+      : null,
     items: normalizarItems(recibo.items),
     enviadoEn: recibo.enviadoEn,
     fecha: recibo.createdAt,
   };
 }
 
-function calcularTotales(items) {
+function calcularTotales(items, opciones = {}) {
   const lineas = (items || []).map((item) => {
     const variante = item.variante;
     const producto = variante ? variante.producto : null;
@@ -161,11 +175,117 @@ function calcularTotales(items) {
     };
   });
 
-  const subtotal = round2(lineas.reduce((sum, linea) => sum + linea.subtotal, 0));
-  const impuestos = round2(subtotal * tasaImpuesto());
-  const total = round2(subtotal + impuestos);
+  const montos = calcularMontosLineas(lineas, opciones.metodoEntrega, opciones.configuracion);
 
-  return { lineas, subtotal, impuestos, total };
+  return { lineas, ...montos };
+}
+
+function calcularMontosLineas(lineas, metodoEntrega = 'domicilio', configuracion = null) {
+  const subtotal = round2((lineas || []).reduce((sum, linea) => sum + linea.subtotal, 0));
+  const esRetiro = normalizarMetodoEntrega(metodoEntrega) === 'retiro';
+  const descuento = esRetiro
+    ? empresaService.calcularDescuentoRetiro(subtotal, configuracion)
+    : { porcentaje: 0, monto: 0 };
+  const baseImponible = round2(Math.max(0, subtotal - descuento.monto));
+  const impuestos = round2(baseImponible * tasaImpuesto());
+  const total = round2(baseImponible + impuestos);
+
+  return {
+    subtotal,
+    descuentoRetiro: descuento.monto,
+    descuentoPorcentaje: descuento.porcentaje,
+    baseImponible,
+    impuestos,
+    total,
+  };
+}
+
+function normalizarMetodoEntrega(valor) {
+  const texto = String(valor || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (['retiro', 'retiro-tienda', 'retiro_en_tienda', 'tienda', 'pickup'].includes(texto)) {
+    return 'retiro';
+  }
+  return 'domicilio';
+}
+
+async function resolverEntrega(payload = {}) {
+  const metodoEntrega = normalizarMetodoEntrega(
+    payload.metodoEntrega || payload.tipoEntrega || payload.formaEntrega
+  );
+
+  if (metodoEntrega !== 'retiro') {
+    return { metodoEntrega, sucursal: null };
+  }
+
+  const sucursalId = Number(payload.sucursalId || payload.sucursal || 0);
+  if (!Number.isInteger(sucursalId) || sucursalId <= 0) {
+    throw new AppError('Selecciona una sucursal activa para el retiro en tienda', 400, [
+      { field: 'sucursalId', message: 'La sucursal de retiro es obligatoria' },
+    ]);
+  }
+
+  const sucursal = await Sucursal.findOne({ where: { id: sucursalId, activa: true } });
+  if (!sucursal) {
+    throw new AppError('La sucursal seleccionada no está activa o no existe', 404, [
+      { field: 'sucursalId', message: 'Selecciona una sucursal habilitada' },
+    ]);
+  }
+
+  return { metodoEntrega, sucursal };
+}
+
+function datosEntregaDesdeSucursal(sucursal, usuario, notas = null) {
+  const notaRetiro = `Retiro en tienda: ${sucursal.nombre}. Horarios: ${
+    sucursal.horarios || 'consultar'
+  }.`;
+  const notaFinal = [notaRetiro, notas].filter(Boolean).join(' ').slice(0, 500);
+
+  return {
+    nombreDestinatario: String(usuario && usuario.nombre ? usuario.nombre : 'Cliente BytePro')
+      .trim()
+      .slice(0, 160),
+    direccion: String(sucursal.direccion || '').slice(0, 255),
+    ciudad: String(sucursal.ciudad || '').slice(0, 100),
+    telefono: String(
+      sucursal.telefono || (usuario && usuario.telefono) || '0000000'
+    ).slice(0, 40),
+    notas: notaFinal,
+  };
+}
+
+function datosEntregaDesdeCheckout(checkout) {
+  return {
+    nombreDestinatario: checkout.nombreDestinatario || null,
+    direccion: checkout.direccion || null,
+    ciudad: checkout.ciudad || null,
+    telefono: checkout.telefono || null,
+    notas: checkout.notas || null,
+  };
+}
+
+function snapshotSucursal(sucursal) {
+  if (!sucursal) {
+    return {
+      sucursalId: null,
+      sucursalNombre: null,
+      sucursalCiudad: null,
+      sucursalDireccion: null,
+      sucursalTelefono: null,
+      sucursalHorarios: null,
+    };
+  }
+  return {
+    sucursalId: sucursal.id,
+    sucursalNombre: sucursal.nombre,
+    sucursalCiudad: sucursal.ciudad,
+    sucursalDireccion: sucursal.direccion,
+    sucursalTelefono: sucursal.telefono,
+    sucursalHorarios: sucursal.horarios,
+  };
 }
 
 async function cargarCarritoActivo(usuarioId) {
@@ -306,15 +426,35 @@ async function validarDisponibilidad(lineas, excluirCheckoutId = null) {
   }
 }
 
-function serializarCheckout(checkout, venta, lineas, direccionesGuardadas = []) {
+function serializarCheckout(checkout, venta, lineas, direccionesGuardadas = [], extra = {}) {
+  const sucursal = checkout.sucursalId
+    ? {
+        id: checkout.sucursalId,
+        nombre: checkout.sucursalNombre,
+        ciudad: checkout.sucursalCiudad,
+        direccion: checkout.sucursalDireccion,
+        telefono: checkout.sucursalTelefono,
+        horarios: checkout.sucursalHorarios,
+      }
+    : null;
+
   return {
     checkoutId: checkout.id,
     ventaId: venta.id,
     estado: checkout.estado,
     moneda: checkout.moneda,
     subtotal: Number(checkout.subtotal),
+    descuentoRetiro: Number(checkout.descuentoRetiro) || 0,
+    descuentoPorcentaje: Number(checkout.descuentoPorcentaje) || 0,
+    baseImponible: round2(
+      Number(checkout.subtotal) - (Number(checkout.descuentoRetiro) || 0)
+    ),
     impuestos: Number(checkout.impuestos),
     total: Number(checkout.total),
+    metodoEntrega: checkout.metodoEntrega || 'domicilio',
+    sucursal,
+    sucursales: extra.sucursales || [],
+    configuracionRetiro: extra.configuracionRetiro || null,
     expiraEn: checkout.expiraEn,
     segundosRestantes: Math.max(
       0,
@@ -339,10 +479,27 @@ function serializarCheckout(checkout, venta, lineas, direccionesGuardadas = []) 
 async function crearCheckout(usuario, payload = {}) {
   await liberarBloqueosExpirados();
 
-  const datosEntrega = await distribucionService.resolverDatosEntrega({
-    usuario,
-    payload: payload || {},
-  });
+  const { metodoEntrega, sucursal } = await resolverEntrega(payload || {});
+  const configuracion = await empresaService.obtenerConfiguracion();
+  const sucursales = await empresaService.listarSucursalesActivas();
+
+  const datosEntrega =
+    metodoEntrega === 'retiro'
+      ? datosEntregaDesdeSucursal(sucursal, usuario, payload.notas)
+      : await distribucionService.resolverDatosEntrega({
+          usuario,
+          payload: payload || {},
+        });
+
+  const extra = {
+    sucursales,
+    configuracionRetiro: {
+      descuentoRetiroAlto: configuracion.descuentoRetiroAlto,
+      descuentoRetiroBajo: configuracion.descuentoRetiroBajo,
+      umbralDescuentoRetiro: configuracion.umbralDescuentoRetiro,
+    },
+  };
+  const snapshot = snapshotSucursal(sucursal);
 
   const direcciones = await Direccion.findAll({
     where: { usuarioId: usuario.id },
@@ -367,7 +524,10 @@ async function crearCheckout(usuario, payload = {}) {
   }));
 
   const carrito = await cargarCarritoActivo(usuario.id);
-  const totales = calcularTotales(carrito.items);
+  const totales = calcularTotales(carrito.items, {
+    metodoEntrega,
+    configuracion,
+  });
 
   const existente = await Checkout.findOne({
     where: {
@@ -406,11 +566,15 @@ async function crearCheckout(usuario, payload = {}) {
       await checkout.update(
         {
           subtotal: totales.subtotal,
+          descuentoRetiro: totales.descuentoRetiro,
+          descuentoPorcentaje: totales.descuentoPorcentaje,
           impuestos: totales.impuestos,
           total: totales.total,
           moneda: env.currency,
           estado: 'abierto',
           expiraEn,
+          metodoEntrega,
+          ...snapshot,
           nombreDestinatario: datosEntrega.nombreDestinatario,
           direccion: datosEntrega.direccion,
           ciudad: datosEntrega.ciudad,
@@ -480,11 +644,15 @@ async function crearCheckout(usuario, payload = {}) {
           carritoId: carrito.id,
           ventaId: venta.id,
           subtotal: totales.subtotal,
+          descuentoRetiro: totales.descuentoRetiro,
+          descuentoPorcentaje: totales.descuentoPorcentaje,
           impuestos: totales.impuestos,
           total: totales.total,
           moneda: env.currency,
           estado: 'abierto',
           expiraEn,
+          metodoEntrega,
+          ...snapshot,
           nombreDestinatario: datosEntrega.nombreDestinatario,
           direccion: datosEntrega.direccion,
           ciudad: datosEntrega.ciudad,
@@ -540,10 +708,125 @@ async function crearCheckout(usuario, payload = {}) {
       transaction,
     });
 
-    data = serializarCheckout(checkout, venta, totales.lineas, direccionesGuardadas);
+    data = serializarCheckout(
+      checkout,
+      venta,
+      totales.lineas,
+      direccionesGuardadas,
+      extra
+    );
   });
 
   return data;
+}
+
+async function actualizarEntrega(usuario, payload = {}) {
+  const ventaId = Number(payload.ventaId || payload.venta || 0);
+  if (!Number.isInteger(ventaId) || ventaId <= 0) {
+    throw new AppError('Se requiere el identificador de la venta', 400);
+  }
+
+  const checkout = await Checkout.findOne({
+    where: { ventaId },
+    include: [{ model: Venta, as: 'venta' }],
+  });
+
+  if (!checkout) {
+    throw new AppError('Sesión de checkout no encontrada', 404);
+  }
+  if (Number(checkout.usuarioId) !== Number(usuario.id)) {
+    throw new AppError('No tienes permisos para modificar esta orden', 403);
+  }
+  if (checkout.estado !== 'abierto' || !checkout.venta || checkout.venta.estado !== 'pendiente') {
+    throw new AppError('La orden ya no está disponible para modificar la entrega', 409);
+  }
+
+  const { metodoEntrega, sucursal } = await resolverEntrega(payload);
+  const configuracion = await empresaService.obtenerConfiguracion();
+  const sucursales = await empresaService.listarSucursalesActivas();
+
+  const items = await CheckoutItem.findAll({
+    where: { checkoutId: checkout.id },
+    order: [['id', 'ASC']],
+  });
+  if (!items.length) {
+    throw new AppError('La sesión de checkout no tiene ítems', 409);
+  }
+
+  const lineas = items.map((item) => ({
+    varianteId: item.varianteId,
+    sku: item.sku,
+    nombreProducto: item.nombreProducto,
+    nombreVariante: item.nombreVariante,
+    cantidad: Number(item.cantidad),
+    precioUnitario: Number(item.precioUnitario),
+    subtotal: Number(item.subtotal),
+  }));
+
+  const totales = calcularMontosLineas(lineas, metodoEntrega, configuracion);
+
+  let datosEntrega;
+  if (metodoEntrega === 'retiro') {
+    datosEntrega = datosEntregaDesdeSucursal(
+      sucursal,
+      usuario,
+      payload.notas || checkout.notas
+    );
+  } else {
+    datosEntrega = await distribucionService.resolverDatosEntrega({
+      usuario,
+      payload: payload || {},
+      checkout: checkout.metodoEntrega === 'domicilio' ? checkout : null,
+    });
+  }
+
+  await checkout.update({
+    subtotal: totales.subtotal,
+    descuentoRetiro: totales.descuentoRetiro,
+    descuentoPorcentaje: totales.descuentoPorcentaje,
+    impuestos: totales.impuestos,
+    total: totales.total,
+    metodoEntrega,
+    ...snapshotSucursal(sucursal),
+    nombreDestinatario: datosEntrega.nombreDestinatario,
+    direccion: datosEntrega.direccion,
+    ciudad: datosEntrega.ciudad,
+    telefono: datosEntrega.telefono,
+    notas: datosEntrega.notas,
+  });
+
+  await checkout.venta.update({ total: totales.total });
+
+  const direcciones = await Direccion.findAll({
+    where: { usuarioId: usuario.id },
+    order: [
+      ['predeterminada', 'DESC'],
+      ['id', 'DESC'],
+    ],
+  });
+  const direccionesGuardadas = direcciones.map((d) => ({
+    id: d.id,
+    etiqueta: d.etiqueta,
+    alias: d.etiqueta,
+    nombreDestinatario: d.nombreDestinatario,
+    destinatario: d.nombreDestinatario,
+    calle: d.calle,
+    direccion: d.calle,
+    ciudad: d.ciudad,
+    telefono: d.telefono,
+    referencias: d.referencias,
+    notas: d.referencias,
+    predeterminada: Boolean(d.predeterminada),
+  }));
+
+  return serializarCheckout(checkout, checkout.venta, lineas, direccionesGuardadas, {
+    sucursales,
+    configuracionRetiro: {
+      descuentoRetiroAlto: configuracion.descuentoRetiroAlto,
+      descuentoRetiroBajo: configuracion.descuentoRetiroBajo,
+      umbralDescuentoRetiro: configuracion.umbralDescuentoRetiro,
+    },
+  });
 }
 
 function validarDatosPago(metodo, datosPago) {
@@ -629,9 +912,25 @@ function serializarResultadoAprobado({
     checkout: {
       id: checkout.id,
       subtotal: Number(checkout.subtotal),
+      descuentoRetiro: Number(checkout.descuentoRetiro) || 0,
+      descuentoPorcentaje: Number(checkout.descuentoPorcentaje) || 0,
+      baseImponible: round2(
+        Number(checkout.subtotal) - (Number(checkout.descuentoRetiro) || 0)
+      ),
       impuestos: Number(checkout.impuestos),
       total: Number(checkout.total),
       moneda: checkout.moneda,
+      metodoEntrega: checkout.metodoEntrega || 'domicilio',
+      sucursal: checkout.sucursalNombre
+        ? {
+            id: checkout.sucursalId,
+            nombre: checkout.sucursalNombre,
+            ciudad: checkout.sucursalCiudad,
+            direccion: checkout.sucursalDireccion,
+            telefono: checkout.sucursalTelefono,
+            horarios: checkout.sucursalHorarios,
+          }
+        : null,
       datosEntrega: {
         nombreDestinatario: checkout.nombreDestinatario || null,
         direccion: checkout.direccion || null,
@@ -762,16 +1061,20 @@ async function procesarPago({
     throw new AppError('La orden no está disponible para pago', 409);
   }
 
-  // [REQ-DIS-03] Validar dirección de entrega antes de procesar el pago
-  const datosEntrega = await distribucionService.resolverDatosEntrega({
-    usuario,
-    payload: {
-      ...(datosPago && typeof datosPago === 'object' ? datosPago : {}),
-      ...(payload && typeof payload === 'object' ? payload : {}),
-      ...(direccionEntrega ? { direccionEntrega } : {}),
-    },
-    checkout,
-  });
+  // [REQ-DIS-03] Validar dirección de entrega antes de procesar el pago.
+  // [REQ-RET-01] En retiro en tienda se usa la sucursal seleccionada, no una dirección domiciliaria.
+  const datosEntrega =
+    normalizarMetodoEntrega(checkout.metodoEntrega) === 'retiro'
+      ? datosEntregaDesdeCheckout(checkout)
+      : await distribucionService.resolverDatosEntrega({
+          usuario,
+          payload: {
+            ...(datosPago && typeof datosPago === 'object' ? datosPago : {}),
+            ...(payload && typeof payload === 'object' ? payload : {}),
+            ...(direccionEntrega ? { direccionEntrega } : {}),
+          },
+          checkout,
+        });
 
   const datos = validarDatosPago(metodo, datosPago);
 
@@ -782,6 +1085,38 @@ async function procesarPago({
 
   if (itemsCheckout.length === 0) {
     throw new AppError('La sesión de checkout no tiene ítems', 409);
+  }
+
+  // [REQ-RET-03] Recalcular el descuento dinámico con la configuración vigente
+  // justo antes de liquidar y confirmar el checkout.
+  const configuracion = await empresaService.obtenerConfiguracion();
+  const lineas = itemsCheckout.map((item) => ({
+    varianteId: item.varianteId,
+    sku: item.sku,
+    nombreProducto: item.nombreProducto,
+    nombreVariante: item.nombreVariante,
+    cantidad: Number(item.cantidad),
+    precioUnitario: Number(item.precioUnitario),
+    subtotal: Number(item.subtotal),
+  }));
+  const totales = calcularMontosLineas(lineas, checkout.metodoEntrega, configuracion);
+
+  if (
+    toCents(totales.subtotal) !== toCents(checkout.subtotal) ||
+    toCents(totales.descuentoRetiro) !== toCents(checkout.descuentoRetiro || 0) ||
+    toCents(totales.impuestos) !== toCents(checkout.impuestos) ||
+    toCents(totales.total) !== toCents(checkout.total)
+  ) {
+    await checkout.update({
+      subtotal: totales.subtotal,
+      descuentoRetiro: totales.descuentoRetiro,
+      descuentoPorcentaje: totales.descuentoPorcentaje,
+      impuestos: totales.impuestos,
+      total: totales.total,
+    });
+    if (checkout.venta) {
+      await checkout.venta.update({ total: totales.total });
+    }
   }
 
   const bloqueosActivos = await BloqueoStock.count({
@@ -840,16 +1175,6 @@ async function procesarPago({
       await checkout.update({ expiraEn: nuevaExpiracion }, { transaction });
     });
   }
-
-  const lineas = itemsCheckout.map((item) => ({
-    varianteId: item.varianteId,
-    sku: item.sku,
-    nombreProducto: item.nombreProducto,
-    nombreVariante: item.nombreVariante,
-    cantidad: Number(item.cantidad),
-    precioUnitario: Number(item.precioUnitario),
-    subtotal: Number(item.subtotal),
-  }));
 
   const resultado = await pasarelaService.procesar({
     metodo,
@@ -1234,9 +1559,25 @@ async function obtenerVenta({ usuario, ventaId }) {
           id: venta.checkout.id,
           estado: venta.checkout.estado,
           subtotal: Number(venta.checkout.subtotal),
+          descuentoRetiro: Number(venta.checkout.descuentoRetiro) || 0,
+          descuentoPorcentaje: Number(venta.checkout.descuentoPorcentaje) || 0,
+          baseImponible: round2(
+            Number(venta.checkout.subtotal) - (Number(venta.checkout.descuentoRetiro) || 0)
+          ),
           impuestos: Number(venta.checkout.impuestos),
           total: Number(venta.checkout.total),
           moneda: venta.checkout.moneda,
+          metodoEntrega: venta.checkout.metodoEntrega || 'domicilio',
+          sucursal: venta.checkout.sucursalNombre
+            ? {
+                id: venta.checkout.sucursalId,
+                nombre: venta.checkout.sucursalNombre,
+                ciudad: venta.checkout.sucursalCiudad,
+                direccion: venta.checkout.sucursalDireccion,
+                telefono: venta.checkout.sucursalTelefono,
+                horarios: venta.checkout.sucursalHorarios,
+              }
+            : null,
           expiraEn: venta.checkout.expiraEn,
           datosEntrega: {
             nombreDestinatario: venta.checkout.nombreDestinatario || null,
@@ -1351,6 +1692,7 @@ module.exports = {
   METODOS_PAGO,
   listarMetodos,
   crearCheckout,
+  actualizarEntrega,
   procesarPago,
   obtenerVenta,
   obtenerRecibo,

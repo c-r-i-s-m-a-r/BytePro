@@ -28,11 +28,15 @@ function errorHandler(err, req, res, next) {
     console.error('[error]', err);
   }
 
+  const extra = err.extra && typeof err.extra === 'object' ? err.extra : {};
+
   res.status(statusCode).json({
     error: {
       message,
       ...(details ? { details } : {}),
+      ...extra,
     },
+    ...extra,
   });
 }
 

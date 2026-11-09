@@ -56,9 +56,7 @@
                 </span>
               </td>
               <td>
-                <div v-if="p.estadoLogistica === 'CANCELADO'" class="field-hint text-danger">
-                  Cancelado
-                </div>
+                <span v-if="esPedidoCancelado(p)" class="field-hint">-</span>
                 <div v-else-if="p.estadoLogistica === 'ENTREGADO'" class="field-hint text-success">
                   Entrega completada
                 </div>
@@ -133,6 +131,14 @@ const ubicacionesInput = reactive({});
 const actualizandoPedidoId = ref(null);
 const despachoError = ref('');
 const despachoExito = ref('');
+
+function esPedidoCancelado(pedido) {
+  if (!pedido) return false;
+  return (
+    pedido.estadoLogistica === 'CANCELADO' ||
+    String(pedido.estadoPago || '').toLowerCase() === 'cancelado'
+  );
+}
 
 function logisticaBadge(estado) {
   if (estado === 'ENTREGADO') return 'badge-stock';

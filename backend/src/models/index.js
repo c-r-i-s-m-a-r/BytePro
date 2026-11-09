@@ -23,6 +23,10 @@ const Despacho = require('./Despacho')(sequelize, DataTypes);
 const EventoAuditoria = require('./EventoAuditoria')(sequelize, DataTypes);
 const Kardex = require('./Kardex')(sequelize, DataTypes);
 const Reclamo = require('./Reclamo')(sequelize, DataTypes);
+const Comunicado = require('./Comunicado')(sequelize, DataTypes);
+const Proveedor = require('./Proveedor')(sequelize, DataTypes);
+const Sucursal = require('./Sucursal')(sequelize, DataTypes);
+const ConfiguracionEmpresa = require('./ConfiguracionEmpresa')(sequelize, DataTypes);
 
 Categoria.hasMany(Producto, { foreignKey: 'categoriaId', as: 'productos' });
 Producto.belongsTo(Categoria, { foreignKey: 'categoriaId', as: 'categoria' });
@@ -111,6 +115,12 @@ Reclamo.belongsTo(Usuario, { foreignKey: 'usuarioId', as: 'usuario' });
 Usuario.hasMany(Reclamo, { foreignKey: 'empleadoAsignadoId', as: 'reclamosAsignados' });
 Reclamo.belongsTo(Usuario, { foreignKey: 'empleadoAsignadoId', as: 'empleadoAsignado' });
 
+Usuario.hasMany(Comunicado, { foreignKey: 'autorId', as: 'comunicados' });
+Comunicado.belongsTo(Usuario, { foreignKey: 'autorId', as: 'autor' });
+
+Sucursal.hasMany(Checkout, { foreignKey: 'sucursalId', as: 'checkouts' });
+Checkout.belongsTo(Sucursal, { foreignKey: 'sucursalId', as: 'sucursal' });
+
 async function ensureColumns(tableName, columns) {
   const [info] = await sequelize.query(`PRAGMA table_info(${tableName});`);
   const existing = new Set((info || []).map((col) => col.name));
@@ -142,11 +152,66 @@ sequelize.addHook('afterBulkSync', async () => {
       ciudad: ' VARCHAR(100)',
       telefono: ' VARCHAR(40)',
       notas: ' VARCHAR(500)',
+      metodo_entrega: " VARCHAR(20) DEFAULT 'domicilio'",
+      sucursal_id: ' INTEGER',
+      sucursal_nombre: ' VARCHAR(120)',
+      sucursal_ciudad: ' VARCHAR(100)',
+      sucursal_direccion: ' VARCHAR(255)',
+      sucursal_telefono: ' VARCHAR(40)',
+      sucursal_horarios: ' VARCHAR(255)',
+      descuento_retiro: ' DECIMAL(12, 2) DEFAULT 0',
+      descuento_porcentaje: ' DECIMAL(5, 2) DEFAULT 0',
+    });
+
+    await ensureColumns('recibos', {
+      descuento_retiro: ' DECIMAL(12, 2) DEFAULT 0',
+      descuento_porcentaje: ' DECIMAL(5, 2) DEFAULT 0',
+      metodo_entrega: " VARCHAR(20) DEFAULT 'domicilio'",
+      sucursal_nombre: ' VARCHAR(120)',
+      sucursal_ciudad: ' VARCHAR(100)',
+      sucursal_direccion: ' VARCHAR(255)',
+      sucursal_telefono: ' VARCHAR(40)',
+      sucursal_horarios: ' VARCHAR(255)',
     });
 
     await ensureColumns('usuarios', {
       roles: ' TEXT',
       funcion_activa: ' VARCHAR(40)',
+      intentos_fallidos: ' INTEGER DEFAULT 0',
+      bloqueado_hasta: ' DATETIME',
+    });
+
+    // Categoría permanente "Accesorios" (REQ-CAT-15)
+    await Categoria.findOrCreate({
+      where: { slug: 'accesorios' },
+      defaults: {
+        nombre: 'Accesorios',
+        slug: 'accesorios',
+        descripcion: 'Periféricos, cables y accesorios para tu equipo',
+        orden: 9,
+        atributos: [
+          {
+            clave: 'tipo',
+            etiqueta: 'Tipo',
+            tipo: 'select',
+            opciones: ['Teclado', 'Mouse', 'Audífonos', 'Cable', 'Adaptador', 'Otro'],
+            requerido: false,
+          },
+          { clave: 'conexion', etiqueta: 'Conexión', tipo: 'text', requerido: false },
+          { clave: 'color', etiqueta: 'Color', tipo: 'text', requerido: false },
+        ],
+      },
+    });
+
+    // Configuración corporativa única (REQ-RET-03)
+    await ConfiguracionEmpresa.findOrCreate({
+      where: { id: 1 },
+      defaults: {
+        descuentoRetiroAlto: 7,
+        descuentoRetiroBajo: 5,
+        umbralDescuentoRetiro: 500,
+        moneda: 'BOB',
+      },
     });
 
     await Reclamo.sync();
@@ -270,4 +335,8 @@ module.exports = {
   EventoAuditoria,
   Kardex,
   Reclamo,
+  Comunicado,
+  Proveedor,
+  Sucursal,
+  ConfiguracionEmpresa,
 };

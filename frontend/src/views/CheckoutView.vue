@@ -20,6 +20,17 @@
           <span>Subtotal</span>
           <span>{{ formatPrice(checkout.result.checkout.subtotal) }}</span>
         </div>
+        <div
+          v-if="Number(checkout.result.checkout.descuentoRetiro) > 0"
+          class="summary-row discount-row"
+        >
+          <span>
+            Descuento retiro en tienda (-{{
+              Number(checkout.result.checkout.descuentoPorcentaje)
+            }}%)
+          </span>
+          <span>-{{ formatPrice(checkout.result.checkout.descuentoRetiro) }}</span>
+        </div>
         <div class="summary-row">
           <span>Impuestos</span>
           <span>{{ formatPrice(checkout.result.checkout.impuestos) }}</span>
@@ -115,120 +126,193 @@
 
       <div v-else class="checkout-layout">
         <section class="checkout-panel">
-          <h2 class="section-title">1. Dirección de entrega</h2>
+          <h2 class="section-title">1. Método de entrega</h2>
 
-          <div v-if="direccionesGuardadas.length" class="mb-4">
-            <p class="field-hint mb-2">
-              Selecciona una de tus direcciones guardadas con un solo clic o ingresa una nueva:
-            </p>
-            <div class="address-grid mb-3">
+          <div class="payment-methods mb-4">
+            <button
+              type="button"
+              class="payment-option"
+              :class="{ active: metodoEntrega === 'domicilio' }"
+              @click="seleccionarMetodoEntrega('domicilio')"
+            >
+              <span class="payment-option-title">Envío a domicilio</span>
+              <span class="payment-option-desc">
+                Entrega en tu dirección registrada dentro del área de cobertura.
+              </span>
+            </button>
+            <button
+              type="button"
+              class="payment-option"
+              :class="{ active: metodoEntrega === 'retiro' }"
+              @click="seleccionarMetodoEntrega('retiro')"
+            >
+              <span class="payment-option-title">Retiro en tienda física</span>
+              <span class="payment-option-desc">
+                Retira en una sucursal BytePro y obtén
+                {{ configuracionRetiro.descuentoRetiroAlto }}% de descuento en compras de
+                {{ formatPrice(configuracionRetiro.umbralDescuentoRetiro) }} o más, o
+                {{ configuracionRetiro.descuentoRetiroBajo }}% en compras menores.
+              </span>
+            </button>
+          </div>
+
+          <div v-if="metodoEntrega === 'retiro'" class="mb-6">
+            <p class="field-hint mb-2">Selecciona la sucursal donde retirarás tu pedido:</p>
+            <div v-if="sucursales.length" class="address-grid mb-3">
               <label
-                v-for="dir in direccionesGuardadas"
-                :key="dir.id"
+                v-for="sucursal in sucursales"
+                :key="sucursal.id"
                 class="address-card selectable-card"
-                :class="{ active: direccionSeleccionadaId === dir.id }"
-                @click="seleccionarDireccionGuardada(dir)"
+                :class="{ active: sucursalSeleccionadaId === sucursal.id }"
+                @click="seleccionarSucursal(sucursal.id)"
               >
                 <div class="flex-between mb-1">
-                  <span class="badge">{{ dir.etiqueta }}</span>
+                  <span class="badge">{{ sucursal.ciudad }}</span>
                   <input
                     type="radio"
-                    name="saved-address"
-                    :value="dir.id"
-                    :checked="direccionSeleccionadaId === dir.id"
-                    @change="seleccionarDireccionGuardada(dir)"
+                    name="pickup-branch"
+                    :value="sucursal.id"
+                    :checked="sucursalSeleccionadaId === sucursal.id"
+                    @change="seleccionarSucursal(sucursal.id)"
                   />
                 </div>
-                <div class="font-semibold">{{ dir.nombreDestinatario }}</div>
-                <div>{{ dir.calle }}</div>
-                <div class="field-hint">{{ dir.ciudad }} · {{ dir.telefono }}</div>
+                <div class="font-semibold">{{ sucursal.nombre }}</div>
+                <div>{{ sucursal.direccion }}</div>
+                <div class="field-hint">
+                  {{ sucursal.telefono }} · {{ sucursal.horarios }}
+                </div>
               </label>
+            </div>
+            <div v-else class="alert alert-danger">
+              No hay sucursales activas disponibles para retiro. Elige envío a domicilio.
+            </div>
+            <p v-if="errors.sucursalId" class="field-error">{{ errors.sucursalId }}</p>
+
+            <div class="field mt-3">
+              <label for="pickup-notes">Notas para el retiro (opcional)</label>
+              <input
+                id="pickup-notes"
+                v-model="notasRetiro"
+                class="input"
+                placeholder="Nombre de quien retira, horario preferido…"
+              />
             </div>
           </div>
 
-          <div class="card-grid mb-4">
-            <div class="field">
-              <label for="shipping-name">Nombre del destinatario</label>
-              <input
-                id="shipping-name"
-                v-model="entrega.nombreDestinatario"
-                class="input"
-                :class="{ 'has-error': errors.nombreDestinatario }"
-                placeholder="Nombre completo de quien recibe"
-              />
-              <p v-if="errors.nombreDestinatario" class="field-error">
-                {{ errors.nombreDestinatario }}
+          <template v-else>
+            <div v-if="direccionesGuardadas.length" class="mb-4">
+              <p class="field-hint mb-2">
+                Selecciona una de tus direcciones guardadas con un solo clic o ingresa una nueva:
               </p>
+              <div class="address-grid mb-3">
+                <label
+                  v-for="dir in direccionesGuardadas"
+                  :key="dir.id"
+                  class="address-card selectable-card"
+                  :class="{ active: direccionSeleccionadaId === dir.id }"
+                  @click="seleccionarDireccionGuardada(dir)"
+                >
+                  <div class="flex-between mb-1">
+                    <span class="badge">{{ dir.etiqueta }}</span>
+                    <input
+                      type="radio"
+                      name="saved-address"
+                      :value="dir.id"
+                      :checked="direccionSeleccionadaId === dir.id"
+                      @change="seleccionarDireccionGuardada(dir)"
+                    />
+                  </div>
+                  <div class="font-semibold">{{ dir.nombreDestinatario }}</div>
+                  <div>{{ dir.calle }}</div>
+                  <div class="field-hint">{{ dir.ciudad }} · {{ dir.telefono }}</div>
+                </label>
+              </div>
             </div>
 
-            <div class="field">
-              <label for="shipping-phone">Teléfono de contacto</label>
+            <div class="card-grid mb-4">
+              <div class="field">
+                <label for="shipping-name">Nombre del destinatario</label>
+                <input
+                  id="shipping-name"
+                  v-model="entrega.nombreDestinatario"
+                  class="input"
+                  :class="{ 'has-error': errors.nombreDestinatario }"
+                  placeholder="Nombre completo de quien recibe"
+                />
+                <p v-if="errors.nombreDestinatario" class="field-error">
+                  {{ errors.nombreDestinatario }}
+                </p>
+              </div>
+
+              <div class="field">
+                <label for="shipping-phone">Teléfono de contacto</label>
+                <input
+                  id="shipping-phone"
+                  v-model="entrega.telefono"
+                  class="input"
+                  :class="{ 'has-error': errors.telefono }"
+                  placeholder="70000000"
+                />
+                <p v-if="errors.telefono" class="field-error">{{ errors.telefono }}</p>
+              </div>
+
+              <div class="field">
+                <label for="shipping-address">Dirección exacta</label>
+                <input
+                  id="shipping-address"
+                  v-model="entrega.direccion"
+                  class="input"
+                  :class="{ 'has-error': errors.direccion }"
+                  placeholder="Av. Principal #123, Zona Central"
+                />
+                <p v-if="errors.direccion" class="field-error">{{ errors.direccion }}</p>
+              </div>
+
+              <div class="field">
+                <label for="shipping-city">Ciudad (área de cobertura)</label>
+                <select
+                  id="shipping-city"
+                  v-model="entrega.ciudad"
+                  class="select"
+                  :class="{ 'has-error': errors.ciudad }"
+                >
+                  <option v-for="c in checkout.ciudadesCobertura" :key="c" :value="c">
+                    {{ c }}
+                  </option>
+                </select>
+                <p v-if="errors.ciudad" class="field-error">{{ errors.ciudad }}</p>
+              </div>
+            </div>
+
+            <div class="field mb-4">
+              <label for="shipping-notes">Notas especiales de entrega (opcional)</label>
               <input
-                id="shipping-phone"
-                v-model="entrega.telefono"
+                id="shipping-notes"
+                v-model="entrega.notas"
                 class="input"
-                :class="{ 'has-error': errors.telefono }"
-                placeholder="70000000"
+                placeholder="Referencias del domicilio, horario preferido…"
               />
-              <p v-if="errors.telefono" class="field-error">{{ errors.telefono }}</p>
             </div>
 
-            <div class="field">
-              <label for="shipping-address">Dirección exacta</label>
+            <div class="flex-between mb-6">
+              <div class="field-inline">
+                <input
+                  id="save-address-check"
+                  v-model="guardarEnLibreta"
+                  type="checkbox"
+                />
+                <label for="save-address-check">
+                  Guardar esta dirección en mi libreta de direcciones
+                </label>
+              </div>
               <input
-                id="shipping-address"
-                v-model="entrega.direccion"
-                class="input"
-                :class="{ 'has-error': errors.direccion }"
-                placeholder="Av. Principal #123, Zona Central"
+                v-if="guardarEnLibreta"
+                v-model="entrega.etiqueta"
+                class="input input-inline"
+                placeholder="Etiqueta (Casa, Oficina)"
               />
-              <p v-if="errors.direccion" class="field-error">{{ errors.direccion }}</p>
             </div>
-
-            <div class="field">
-              <label for="shipping-city">Ciudad (área de cobertura)</label>
-              <select
-                id="shipping-city"
-                v-model="entrega.ciudad"
-                class="select"
-                :class="{ 'has-error': errors.ciudad }"
-              >
-                <option v-for="c in checkout.ciudadesCobertura" :key="c" :value="c">
-                  {{ c }}
-                </option>
-              </select>
-              <p v-if="errors.ciudad" class="field-error">{{ errors.ciudad }}</p>
-            </div>
-          </div>
-
-          <div class="field mb-4">
-            <label for="shipping-notes">Notas especiales de entrega (opcional)</label>
-            <input
-              id="shipping-notes"
-              v-model="entrega.notas"
-              class="input"
-              placeholder="Referencias del domicilio, horario preferido…"
-            />
-          </div>
-
-          <div class="flex-between mb-6">
-            <div class="field-inline">
-              <input
-                id="save-address-check"
-                v-model="guardarEnLibreta"
-                type="checkbox"
-              />
-              <label for="save-address-check">
-                Guardar esta dirección en mi libreta de direcciones
-              </label>
-            </div>
-            <input
-              v-if="guardarEnLibreta"
-              v-model="entrega.etiqueta"
-              class="input input-inline"
-              placeholder="Etiqueta (Casa, Oficina)"
-            />
-          </div>
+          </template>
 
           <h2 class="section-title">2. Método de pago</h2>
 
@@ -325,8 +409,7 @@
               </div>
 
               <p class="field-hint">
-                Validamos el número con el algoritmo de Luhn en tu navegador y solo enviamos
-                un token al servidor. Nunca almacenamos el número completo ni el CVV.
+                Nunca almacenamos el número completo ni el CVV.
               </p>
             </template>
 
@@ -427,6 +510,10 @@
             <span>Subtotal</span>
             <span>{{ formatPrice(totales.subtotal) }}</span>
           </div>
+          <div v-if="Number(totales.descuentoRetiro) > 0" class="summary-row discount-row">
+            <span>Descuento retiro en tienda (-{{ Number(totales.descuentoPorcentaje) }}%)</span>
+            <span>-{{ formatPrice(totales.descuentoRetiro) }}</span>
+          </div>
           <div class="summary-row">
             <span>Impuestos {{ tasaLabel }}</span>
             <span>{{ formatPrice(totales.impuestos) }}</span>
@@ -478,6 +565,10 @@ const simulacion = ref('aprobado');
 const direccionSeleccionadaId = ref(null);
 const guardarEnLibreta = ref(false);
 const direccionesLista = ref([]);
+const metodoEntrega = ref('domicilio');
+const sucursalSeleccionadaId = ref(null);
+const notasRetiro = ref('');
+const entregaTocada = ref(false);
 
 const entrega = reactive({
   etiqueta: 'Casa',
@@ -506,15 +597,28 @@ const direccionesGuardadas = computed(() =>
   direccionesLista.value.length ? direccionesLista.value : checkout.direccionesGuardadas
 );
 
+const sucursales = computed(() => checkout.sucursales || []);
+
+const configuracionRetiro = computed(() => checkout.configuracionRetiro);
+
 const totales = computed(
-  () => checkout.totales || { subtotal: 0, impuestos: 0, total: 0, moneda: 'USD' }
+  () =>
+    checkout.totales || {
+      subtotal: 0,
+      descuentoRetiro: 0,
+      descuentoPorcentaje: 0,
+      baseImponible: 0,
+      impuestos: 0,
+      total: 0,
+      moneda: 'BOB',
+    }
 );
 
 const tasaLabel = computed(() => {
-  const subtotal = Number(totales.value.subtotal) || 0;
+  const base = Number(totales.value.baseImponible || totales.value.subtotal) || 0;
   const impuestos = Number(totales.value.impuestos) || 0;
-  if (!subtotal) return '';
-  return `${Math.round((impuestos / subtotal) * 100)}%`;
+  if (!base) return '';
+  return `${Math.round((impuestos / base) * 100)}%`;
 });
 
 const restanteTexto = computed(() => {
@@ -556,6 +660,66 @@ function seleccionarDireccionGuardada(dir) {
   entrega.notas = dir.referencias || dir.notas || '';
 }
 
+function direccionEntregaValida() {
+  return (
+    entrega.nombreDestinatario.trim().length >= 2 &&
+    entrega.direccion.trim().length >= 4 &&
+    Boolean(entrega.ciudad.trim()) &&
+    entrega.telefono.trim().length >= 5
+  );
+}
+
+async function aplicarEntrega() {
+  if (!checkout.session) return null;
+  const payload = {
+    metodoEntrega: metodoEntrega.value,
+    sucursalId: metodoEntrega.value === 'retiro' ? sucursalSeleccionadaId.value : null,
+  };
+  if (metodoEntrega.value === 'retiro') {
+    payload.notas = notasRetiro.value.trim() || null;
+  }
+  if (metodoEntrega.value === 'domicilio' && direccionEntregaValida()) {
+    payload.direccionEntrega = construirDireccionEntrega();
+  }
+  try {
+    return await checkout.actualizarEntrega(payload);
+  } catch (err) {
+    // El store conserva el mensaje de error para mostrarlo en pantalla.
+    return null;
+  }
+}
+
+async function seleccionarMetodoEntrega(metodo) {
+  if (metodoEntrega.value === metodo) return;
+  if (metodo === 'retiro' && !sucursales.value.length) {
+    ui.warning('No hay sucursales activas disponibles para retiro en tienda.');
+    return;
+  }
+  entregaTocada.value = true;
+  metodoEntrega.value = metodo;
+  limpiarErrores();
+
+  if (metodo === 'retiro') {
+    if (!sucursalSeleccionadaId.value && sucursales.value.length) {
+      sucursalSeleccionadaId.value = sucursales.value[0].id;
+    }
+  } else {
+    sucursalSeleccionadaId.value = null;
+  }
+
+  await aplicarEntrega();
+}
+
+async function seleccionarSucursal(id) {
+  if (sucursalSeleccionadaId.value === id) return;
+  entregaTocada.value = true;
+  sucursalSeleccionadaId.value = id;
+  limpiarErrores();
+  if (metodoEntrega.value === 'retiro') {
+    await aplicarEntrega();
+  }
+}
+
 function onNumeroInput(event) {
   form.numero = formatCardNumber(event.target.value);
 }
@@ -570,17 +734,23 @@ function seleccionarMetodo(id) {
 function validarFormulario() {
   limpiarErrores();
 
-  if (!entrega.nombreDestinatario.trim() || entrega.nombreDestinatario.trim().length < 2) {
-    errors.nombreDestinatario = 'Ingresa el nombre del destinatario.';
-  }
-  if (!entrega.direccion.trim() || entrega.direccion.trim().length < 4) {
-    errors.direccion = 'Ingresa la dirección exacta de entrega.';
-  }
-  if (!entrega.ciudad.trim()) {
-    errors.ciudad = 'Selecciona una ciudad de cobertura.';
-  }
-  if (!entrega.telefono.trim() || entrega.telefono.trim().length < 5) {
-    errors.telefono = 'Ingresa un teléfono de contacto válido.';
+  if (metodoEntrega.value === 'retiro') {
+    if (!sucursalSeleccionadaId.value) {
+      errors.sucursalId = 'Selecciona una sucursal activa para retirar tu pedido.';
+    }
+  } else {
+    if (!entrega.nombreDestinatario.trim() || entrega.nombreDestinatario.trim().length < 2) {
+      errors.nombreDestinatario = 'Ingresa el nombre del destinatario.';
+    }
+    if (!entrega.direccion.trim() || entrega.direccion.trim().length < 4) {
+      errors.direccion = 'Ingresa la dirección exacta de entrega.';
+    }
+    if (!entrega.ciudad.trim()) {
+      errors.ciudad = 'Selecciona una ciudad de cobertura.';
+    }
+    if (!entrega.telefono.trim() || entrega.telefono.trim().length < 5) {
+      errors.telefono = 'Ingresa un teléfono de contacto válido.';
+    }
   }
 
   if (metodoSeleccionado.value === 'tarjeta') {
@@ -648,8 +818,9 @@ async function pagar() {
 
   enviando.value = true;
   try {
-    const direccionEntrega = construirDireccionEntrega();
-    if (guardarEnLibreta.value) {
+    const esRetiro = metodoEntrega.value === 'retiro';
+    const direccionEntrega = esRetiro ? null : construirDireccionEntrega();
+    if (!esRetiro && guardarEnLibreta.value) {
       try {
         const { data: nueva } = await api.post('/clientes/direcciones', {
           etiqueta: entrega.etiqueta || 'Casa',
@@ -667,11 +838,18 @@ async function pagar() {
       }
     }
 
-    await checkout.crearSesion({ direccionEntrega });
+    await checkout.crearSesion({
+      direccionEntrega: direccionEntrega || undefined,
+      metodoEntrega: metodoEntrega.value,
+      sucursalId: esRetiro ? sucursalSeleccionadaId.value : undefined,
+      notas: esRetiro ? notasRetiro.value.trim() || undefined : undefined,
+    });
     await checkout.pagar({
       metodo: metodoSeleccionado.value,
       datosPago: construirDatosPago(),
-      direccionEntrega,
+      direccionEntrega: direccionEntrega || undefined,
+      metodoEntrega: metodoEntrega.value,
+      sucursalId: esRetiro ? sucursalSeleccionadaId.value : undefined,
     });
   } catch (err) {
     // El store conserva el mensaje de error para mostrarlo en pantalla.
@@ -682,7 +860,14 @@ async function pagar() {
 
 async function reintentarSesion() {
   try {
-    await checkout.crearSesion();
+    const esRetiro = metodoEntrega.value === 'retiro';
+    await checkout.crearSesion({
+      metodoEntrega: metodoEntrega.value,
+      sucursalId: esRetiro ? sucursalSeleccionadaId.value : undefined,
+      notas: esRetiro ? notasRetiro.value.trim() || undefined : undefined,
+      direccionEntrega:
+        !esRetiro && direccionEntregaValida() ? construirDireccionEntrega() : undefined,
+    });
   } catch (err) {
     // El store conserva el mensaje de error.
   }
@@ -706,7 +891,18 @@ watch(
   (session) => {
     if (session) {
       iniciarContador(session.segundosRestantes);
+
+      if (!entregaTocada.value) {
+        metodoEntrega.value = session.metodoEntrega || 'domicilio';
+        sucursalSeleccionadaId.value = session.sucursal
+          ? session.sucursal.id
+          : metodoEntrega.value === 'retiro' && sucursales.value.length
+            ? sucursales.value[0].id
+            : null;
+      }
+
       if (
+        metodoEntrega.value === 'domicilio' &&
         !entrega.direccion &&
         session.datosEntrega &&
         session.datosEntrega.direccion
@@ -749,6 +945,9 @@ onMounted(async () => {
 
   try {
     await checkout.crearSesion();
+    if (entregaTocada.value) {
+      await aplicarEntrega();
+    }
   } catch (err) {
     // El store conserva el mensaje de error.
   }

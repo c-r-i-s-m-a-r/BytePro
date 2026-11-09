@@ -10,8 +10,9 @@ function fromCents(value) {
   return round2(Number(value) / 100);
 }
 
-function formatearMonto(value, moneda = 'USD') {
-  return `${moneda} ${round2(value).toFixed(2)}`;
+function formatearMonto(value, moneda = 'BOB') {
+  const prefijo = moneda === 'BOB' ? 'Bs.' : moneda;
+  return `${prefijo} ${round2(value).toFixed(2)}`;
 }
 
 module.exports = { round2, toCents, fromCents, formatearMonto };

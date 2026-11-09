@@ -1,6 +1,9 @@
 <template>
   <div class="container auth-wrap">
     <div class="auth-card">
+      <RouterLink to="/" class="auth-brand" aria-label="BytePro Inicio">
+        <img :src="byteproLogo" alt="BytePro" class="auth-logo" />
+      </RouterLink>
       <h1>Crear cuenta</h1>
       <p class="auth-subtitle">Regístrate para comprar y reseñar productos.</p>
 
@@ -77,6 +80,7 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import byteproLogo from '../assets/icons/icon-bytepro.png';
 import { apiErrorDetails, apiErrorMessage } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
@@ -108,7 +112,10 @@ async function submit() {
     });
     await cart.fetch();
     ui.success('Cuenta creada correctamente');
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+    const redirect =
+      typeof route.query.redirect === 'string'
+        ? route.query.redirect
+        : { name: 'catalog' };
     router.push(redirect);
   } catch (err) {
     const details = apiErrorDetails(err);

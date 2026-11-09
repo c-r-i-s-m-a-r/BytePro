@@ -4,6 +4,12 @@ import { useAuthStore } from '../store/auth';
 const routes = [
   {
     path: '/',
+    name: 'landing',
+    component: () => import('../views/LandingView.vue'),
+  },
+  {
+    path: '/productos',
+    alias: '/catalogo',
     name: 'catalog',
     component: () => import('../views/CatalogView.vue'),
   },
@@ -41,12 +47,14 @@ const routes = [
     name: 'tracking',
     component: () => import('../views/TrackingView.vue'),
     props: true,
+    meta: { requiresAuth: true },
   },
   {
     path: '/tracking/:codigo?',
     name: 'tracking-alias',
     component: () => import('../views/TrackingView.vue'),
     props: true,
+    meta: { requiresAuth: true },
   },
   {
     path: '/soporte',
@@ -107,7 +115,7 @@ const routes = [
       {
         path: '',
         name: 'admin',
-        redirect: { name: 'admin-resumen' },
+        component: () => import('../views/admin/AdminResumenView.vue'),
       },
       {
         path: 'resumen',
@@ -150,6 +158,17 @@ const routes = [
         component: () => import('../views/admin/AdminAuditoriaView.vue'),
         meta: { requireAdmin: true },
       },
+      {
+        path: 'comunicados',
+        name: 'admin-comunicados',
+        component: () => import('../views/admin/AdminComunicadosView.vue'),
+      },
+      {
+        path: 'ajustes',
+        name: 'admin-ajustes',
+        component: () => import('../views/admin/AdminAjustesView.vue'),
+        meta: { requireAdmin: true },
+      },
     ],
   },
   {
@@ -172,7 +191,7 @@ router.beforeEach((to) => {
 
   // REQ-EMP-10: Si el usuario es empleado o admin e intenta ir a rutas de consumo de cliente
   // (/carrito, /checkout, /comparar, / o catalogo), redirigir de inmediato al portal corporativo /admin
-  const retailClientRoutes = ['catalog', 'cart', 'checkout', 'compare', 'product'];
+  const retailClientRoutes = ['landing', 'catalog', 'cart', 'checkout', 'compare', 'product'];
   if (auth.isAuthenticated && auth.isStaff) {
     if (retailClientRoutes.includes(to.name) || to.path === '/') {
       return { name: 'admin' };

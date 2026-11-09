@@ -10,17 +10,7 @@
   >
     <div class="modal-card">
       <div class="modal-header">
-        <span
-          class="badge"
-          :class="ui.confirmDialog.variant === 'danger' ? 'badge-agotado' : ''"
-        >
-          {{
-            ui.confirmDialog.variant === 'danger'
-              ? 'Acción decisiva / Advertencia'
-              : 'Confirmación requerida'
-          }}
-        </span>
-        <h2 id="confirm-modal-title" class="section-title mt-2 mb-0">
+        <h2 id="confirm-modal-title" class="section-title mb-0">
           {{ ui.confirmDialog.title }}
         </h2>
       </div>

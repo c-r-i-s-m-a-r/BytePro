@@ -41,6 +41,19 @@
           <div>{{ metodoLabel(recibo.metodo) }}</div>
           <div class="muted">Transacción {{ recibo.codigoTransaccion || '—' }}</div>
         </div>
+        <div>
+          <span class="receipt-meta-label">Entrega</span>
+          <div>
+            {{ recibo.metodoEntrega === 'retiro' ? 'Retiro en tienda' : 'Envío a domicilio' }}
+          </div>
+          <template v-if="recibo.metodoEntrega === 'retiro' && recibo.sucursal">
+            <div class="muted">{{ recibo.sucursal.nombre }}</div>
+            <div class="muted">{{ recibo.sucursal.direccion }} · {{ recibo.sucursal.ciudad }}</div>
+            <div class="muted">
+              {{ recibo.sucursal.telefono }} · {{ recibo.sucursal.horarios }}
+            </div>
+          </template>
+        </div>
       </section>
 
       <div class="table-wrap receipt-table-wrap">
@@ -75,6 +88,10 @@
         <div class="summary-row">
           <span>Subtotal</span>
           <span>{{ formatPrice(recibo.subtotal) }}</span>
+        </div>
+        <div v-if="Number(recibo.descuentoRetiro) > 0" class="summary-row discount-row">
+          <span>Descuento retiro en tienda (-{{ Number(recibo.descuentoPorcentaje) }}%)</span>
+          <span>-{{ formatPrice(recibo.descuentoRetiro) }}</span>
         </div>
         <div class="summary-row">
           <span>Impuestos</span>

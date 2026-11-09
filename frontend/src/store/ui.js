@@ -6,6 +6,7 @@ let confirmResolver = null;
 export const useUiStore = defineStore('ui', {
   state: () => ({
     toasts: [],
+    cartDrawerOpen: false,
     confirmDialog: {
       open: false,
       title: 'Confirmar acción',
@@ -38,6 +39,12 @@ export const useUiStore = defineStore('ui', {
     },
     remove(id) {
       this.toasts = this.toasts.filter((t) => t.id !== id);
+    },
+    openCartDrawer() {
+      this.cartDrawerOpen = true;
+    },
+    closeCartDrawer() {
+      this.cartDrawerOpen = false;
     },
     confirm(options = {}) {
       if (confirmResolver) {

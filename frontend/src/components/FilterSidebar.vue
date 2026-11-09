@@ -38,7 +38,7 @@
     </div>
 
     <div class="filter-group">
-      <span class="filter-label">Precio (USD)</span>
+      <span class="filter-label">Precio (Bs.)</span>
       <div class="filter-price-row">
         <input
           class="input"

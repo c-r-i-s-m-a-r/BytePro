@@ -34,6 +34,65 @@ function num(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+const IMAGE_ERROR = 'El formato debe ser PNG, JPEG o WEBP y no superar los 5 MB';
+
+function bytesDeBase64(base64) {
+  const limpio = String(base64 || '').replace(/\s/g, '');
+  const padding = (limpio.match(/=*$/) || [''])[0].length;
+  return Math.floor((limpio.length * 3) / 4) - padding;
+}
+
+function normalizarImagen(value) {
+  if (value === undefined || value === null) return null;
+  const texto = String(value).trim();
+  if (!texto) return null;
+
+  if (texto.startsWith('data:')) {
+    const match = texto.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/i);
+    if (!match) throw new AppError(IMAGE_ERROR, 400);
+    const mime = match[1].toLowerCase();
+    if (!IMAGE_MIME_TYPES.has(mime)) throw new AppError(IMAGE_ERROR, 400);
+    if (bytesDeBase64(match[2]) > IMAGE_MAX_BYTES) throw new AppError(IMAGE_ERROR, 400);
+    return texto;
+  }
+
+  if (texto.length > 2048) {
+    throw new AppError('La URL de imagen no puede superar los 2048 caracteres', 400);
+  }
+  if (!/^https?:\/\//i.test(texto) && !texto.startsWith('/uploads/')) {
+    throw new AppError('La URL de imagen no es válida', 400);
+  }
+  return texto;
+}
+
+function normalizarImagenes(imagenes, imagenPrincipal = null) {
+  const lista = Array.isArray(imagenes) ? imagenes : imagenes ? [imagenes] : [];
+  const resultado = [];
+  for (const item of lista) {
+    const imagen = normalizarImagen(item);
+    if (imagen && !resultado.includes(imagen)) resultado.push(imagen);
+  }
+  if (imagenPrincipal && !resultado.includes(imagenPrincipal)) {
+    resultado.unshift(imagenPrincipal);
+  }
+  return resultado;
+}
+
+function normalizarObjeto(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      return {};
+    }
+  }
+  return {};
+}
+
 function stockOf(variante) {
   if (!variante) return 0;
   const cantidad = variante.inventario ? variante.inventario.cantidad : 0;
@@ -61,6 +120,7 @@ function serializeVariante(variante, producto) {
         ? Number(variante.precioVenta)
         : Number(producto.precioVenta),
     imagenes: variante.imagenes || [],
+    imagen: (variante.imagenes && variante.imagenes[0]) || null,
     stock,
     disponible: variante.activo !== false && stock > 0,
     activo: variante.activo !== false,
@@ -95,6 +155,8 @@ function serializeProducto(producto) {
     imagenes: producto.imagenes || [],
     imagenPrincipal:
       producto.imagenPrincipal || (producto.imagenes && producto.imagenes[0]) || null,
+    imagen:
+      producto.imagenPrincipal || (producto.imagenes && producto.imagenes[0]) || null,
     puntajePromedio: Number(producto.puntajePromedio || 0),
     totalResenas: Number(producto.totalResenas || 0),
     stock,
@@ -110,12 +172,12 @@ function esPublicable(producto) {
     return false;
   }
   const specs = producto.especificaciones || {};
-  if (!specs || Object.keys(specs).length === 0) {
+  const requeridos = (producto.categoria.atributos || []).filter((a) => a.requerido);
+  if ((!specs || Object.keys(specs).length === 0) && requeridos.length > 0) {
     // eslint-disable-next-line no-console
     console.warn(`[catalogo] Producto ${producto.id} excluido: sin atributos técnicos`);
     return false;
   }
-  const requeridos = (producto.categoria.atributos || []).filter((a) => a.requerido);
   const faltantes = requeridos.filter((a) => {
     const value = specs[a.clave];
     return value === undefined || value === null || value === '';
@@ -435,11 +497,14 @@ async function crearProducto(payload) {
     descripcion,
     categoriaId,
     precioCompra = 0,
-    precioVenta = 0,
+    precioVenta,
+    precioBase,
+    precio,
     garantiaMeses = 12,
     especificaciones = {},
     imagenes = [],
     imagenPrincipal = null,
+    imagen = null,
     variantes = [],
   } = payload || {};
 
@@ -449,7 +514,18 @@ async function crearProducto(payload) {
   const categoria = await Categoria.findByPk(categoriaId);
   if (!categoria) throw new AppError('Categoría no válida', 400);
 
+  const precioVentaFinal = Math.max(0, num(precioVenta ?? precioBase ?? precio ?? 0) ?? 0);
+  const precioCompraFinal = Math.max(0, num(precioCompra) ?? 0);
+  const imagenFinal = normalizarImagen(imagenPrincipal ?? imagen);
+  const imagenesFinales = normalizarImagenes(imagenes, imagenFinal);
+  const especificacionesFinales = normalizarObjeto(especificaciones);
+
   const slug = await uniqueSlug(nombre);
+  const slugBase =
+    slug
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '')
+      .slice(0, 20) || 'PRODUCTO';
 
   const producto = await Producto.create({
     nombre,
@@ -458,49 +534,55 @@ async function crearProducto(payload) {
     slug,
     descripcion,
     categoriaId: categoria.id,
-    precioCompra,
-    precioVenta,
+    precioCompra: precioCompraFinal,
+    precioVenta: precioVentaFinal,
     garantiaMeses,
-    especificaciones,
-    imagenes,
-    imagenPrincipal,
+    especificaciones: especificacionesFinales,
+    imagenes: imagenesFinales,
+    imagenPrincipal: imagenFinal,
     activo: true,
   });
 
-  const variantesData = variantes.length
-    ? variantes
-    : [
-        {
-          sku: `${slug.toUpperCase().slice(0, 20)}-BASE`,
-          nombre: 'Estándar',
-          atributos: {},
-          precioVenta,
-          precioCompra,
-          imagenes,
-          cantidad: 0,
-        },
-      ];
+  const variantesData =
+    Array.isArray(variantes) && variantes.length
+      ? variantes
+      : [
+          {
+            sku: `${slugBase}-BASE`,
+            nombre: 'Estándar',
+            atributos: {},
+            cantidad: 0,
+          },
+        ];
 
-  for (const v of variantesData) {
+  for (let index = 0; index < variantesData.length; index += 1) {
+    const v = variantesData[index] || {};
+    const skuSolicitado = String(v.sku || '').trim() || `${slugBase}-${index + 1}`;
+    // eslint-disable-next-line no-await-in-loop
+    const sku = await uniqueSku(skuSolicitado);
+    const imagenesVariante = normalizarImagenes(v.imagenes, null);
+
     // eslint-disable-next-line no-await-in-loop
     const variante = await Variante.create({
       productoId: producto.id,
-      sku: v.sku,
+      sku,
       ean: v.ean || null,
-      nombre: v.nombre || null,
-      atributos: v.atributos || {},
-      precioVenta: v.precioVenta ?? precioVenta,
-      precioCompra: v.precioCompra ?? precioCompra,
-      imagenes: v.imagenes || imagenes,
+      nombre: v.nombre || 'Estándar',
+      atributos: normalizarObjeto(v.atributos),
+      precioVenta: num(v.precioVenta ?? v.precio) ?? precioVentaFinal,
+      precioCompra: num(v.precioCompra) ?? precioCompraFinal,
+      imagenes: imagenesVariante.length ? imagenesVariante : imagenesFinales,
       activo: true,
     });
-    const cantidadInicial = Number(v.cantidad) || 0;
+
+    const cantidadInicial = Math.max(0, num(v.cantidad ?? v.stock) ?? 0);
+    const umbralBajo = Math.max(0, num(v.umbralBajo) ?? 5);
     // eslint-disable-next-line no-await-in-loop
     await Inventario.create({
       varianteId: variante.id,
       cantidad: cantidadInicial,
       ubicacion: v.ubicacion || null,
-      umbralBajo: v.umbralBajo ?? 5,
+      umbralBajo,
     });
     if (cantidadInicial > 0) {
       // eslint-disable-next-line no-await-in-loop
@@ -517,6 +599,23 @@ async function crearProducto(payload) {
   }
 
   return getProducto(producto.id);
+}
+
+async function uniqueSku(base) {
+  const limpio =
+    String(base || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9-]/g, '')
+      .slice(0, 64) || 'SKU';
+  let candidate = limpio;
+  let counter = 1;
+  // eslint-disable-next-line no-await-in-loop
+  while (await Variante.findOne({ where: { sku: candidate } })) {
+    const suffix = `-${counter}`;
+    candidate = `${limpio.slice(0, 64 - suffix.length)}${suffix}`;
+    counter += 1;
+  }
+  return candidate;
 }
 
 async function uniqueSlug(nombre) {
@@ -544,9 +643,6 @@ async function actualizarProducto(id, payload) {
     'precioCompra',
     'precioVenta',
     'garantiaMeses',
-    'especificaciones',
-    'imagenes',
-    'imagenPrincipal',
     'activo',
   ];
   const cambios = {};
@@ -554,12 +650,189 @@ async function actualizarProducto(id, payload) {
     if (payload[campo] !== undefined) cambios[campo] = payload[campo];
   });
 
+  if (payload.precioBase !== undefined && payload.precioVenta === undefined) {
+    cambios.precioVenta = payload.precioBase;
+  }
+  if (
+    payload.precio !== undefined &&
+    payload.precioVenta === undefined &&
+    payload.precioBase === undefined
+  ) {
+    cambios.precioVenta = payload.precio;
+  }
+  if (cambios.precioVenta !== undefined) {
+    cambios.precioVenta = Math.max(0, num(cambios.precioVenta) ?? 0);
+  }
+  if (cambios.precioCompra !== undefined) {
+    cambios.precioCompra = Math.max(0, num(cambios.precioCompra) ?? 0);
+  }
+  if (payload.especificaciones !== undefined) {
+    cambios.especificaciones = normalizarObjeto(payload.especificaciones);
+  }
+
   if (cambios.categoriaId !== undefined) {
     const categoria = await Categoria.findByPk(cambios.categoriaId);
     if (!categoria) throw new AppError('Categoría no válida', 400);
   }
 
+  if (payload.imagenes !== undefined) {
+    const lista = Array.isArray(payload.imagenes)
+      ? payload.imagenes.map((img) => normalizarImagen(img)).filter(Boolean)
+      : (payload.imagenes ? [normalizarImagen(payload.imagenes)].filter(Boolean) : []);
+    cambios.imagenes = lista;
+    if (payload.imagenPrincipal !== undefined) {
+      cambios.imagenPrincipal = normalizarImagen(payload.imagenPrincipal);
+    } else {
+      cambios.imagenPrincipal = lista[0] || null;
+    }
+  } else {
+    const imagenEntrada = payload.imagenPrincipal ?? payload.imagen;
+    if (imagenEntrada !== undefined) {
+      const normalizada = normalizarImagen(imagenEntrada);
+      cambios.imagenPrincipal = normalizada;
+      if (normalizada) {
+        const actuales = Array.isArray(producto.imagenes) ? producto.imagenes : [];
+        cambios.imagenes = normalizarImagenes([normalizada, ...actuales], normalizada);
+      } else {
+        cambios.imagenes = [];
+      }
+    }
+  }
+
   await producto.update(cambios);
+
+  if (Array.isArray(payload.variantes)) {
+    const slugBase =
+      (producto.slug || 'VAR')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '')
+        .slice(0, 20) || 'VAR';
+
+    const existentes = await Variante.findAll({
+      where: { productoId: producto.id },
+      include: [{ model: Inventario, as: 'inventario' }],
+    });
+    const mapaExistentes = new Map(existentes.map((v) => [v.id, v]));
+    const mapaPorSku = new Map(existentes.map((v) => [v.sku, v]));
+    const idsProcesados = new Set();
+
+    for (let index = 0; index < payload.variantes.length; index += 1) {
+      const vData = payload.variantes[index] || {};
+      const precioV =
+        vData.precio !== undefined
+          ? num(vData.precio)
+          : vData.precioVenta !== undefined
+          ? num(vData.precioVenta)
+          : num(cambios.precioVenta ?? producto.precioVenta);
+      const cantidad = Math.max(0, num(vData.stock ?? vData.cantidad) ?? 0);
+      const atributos = normalizarObjeto(vData.atributos);
+      const nombreVar = String(vData.nombre || '').trim() || 'Estándar';
+
+      let varExistente = null;
+      const varId = Number(vData.id);
+      if (varId && mapaExistentes.has(varId)) {
+        varExistente = mapaExistentes.get(varId);
+      } else if (vData.sku && mapaPorSku.has(String(vData.sku).trim())) {
+        varExistente = mapaPorSku.get(String(vData.sku).trim());
+      }
+
+      if (varExistente) {
+        idsProcesados.add(varExistente.id);
+
+        let skuFinal = varExistente.sku;
+        const skuSolicitado = String(vData.sku || '').trim();
+        if (skuSolicitado && skuSolicitado !== varExistente.sku) {
+          skuFinal = await uniqueSku(skuSolicitado);
+        }
+
+        await varExistente.update({
+          nombre: nombreVar,
+          sku: skuFinal,
+          precioVenta: precioV,
+          atributos,
+          activo: true,
+        });
+
+        let inventario = varExistente.inventario;
+        if (!inventario) {
+          inventario = await Inventario.findOne({ where: { varianteId: varExistente.id } });
+        }
+        if (inventario) {
+          const stockAnterior = inventario.cantidad;
+          if (stockAnterior !== cantidad) {
+            await inventario.update({ cantidad });
+            await Kardex.create({
+              varianteId: varExistente.id,
+              tipo: cantidad > stockAnterior ? 'ENTRADA' : 'AJUSTE',
+              cantidad: Math.abs(cantidad - stockAnterior),
+              stockAnterior,
+              stockResultante: cantidad,
+              motivo: 'Ajuste de inventario en edición de producto',
+              referencia: `producto:${producto.id}`,
+            });
+          }
+        } else {
+          await Inventario.create({
+            varianteId: varExistente.id,
+            cantidad,
+            umbralBajo: 5,
+          });
+          if (cantidad > 0) {
+            await Kardex.create({
+              varianteId: varExistente.id,
+              tipo: 'ENTRADA',
+              cantidad,
+              stockAnterior: 0,
+              stockResultante: cantidad,
+              motivo: 'Carga inicial de inventario',
+              referencia: `producto:${producto.id}`,
+            });
+          }
+        }
+      } else {
+        const skuSolicitado = String(vData.sku || '').trim() || `${slugBase}-${index + 1}`;
+        const sku = await uniqueSku(skuSolicitado);
+
+        const nuevaVariante = await Variante.create({
+          productoId: producto.id,
+          sku,
+          nombre: nombreVar,
+          atributos,
+          precioVenta: precioV,
+          precioCompra: num(cambios.precioCompra ?? producto.precioCompra) ?? 0,
+          imagenes: cambios.imagenes || producto.imagenes || [],
+          activo: true,
+        });
+
+        await Inventario.create({
+          varianteId: nuevaVariante.id,
+          cantidad,
+          ubicacion: vData.ubicacion || null,
+          umbralBajo: 5,
+        });
+
+        if (cantidad > 0) {
+          await Kardex.create({
+            varianteId: nuevaVariante.id,
+            tipo: 'ENTRADA',
+            cantidad,
+            stockAnterior: 0,
+            stockResultante: cantidad,
+            motivo: 'Variante creada en edición de producto',
+            referencia: `producto:${producto.id}`,
+          });
+        }
+        idsProcesados.add(nuevaVariante.id);
+      }
+    }
+
+    for (const varExistente of existentes) {
+      if (!idsProcesados.has(varExistente.id)) {
+        await varExistente.update({ activo: false });
+      }
+    }
+  }
+
   return getProducto(producto.id);
 }
 

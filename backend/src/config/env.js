@@ -20,6 +20,6 @@ module.exports = {
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10),
   taxRate: parseFloat(process.env.TAX_RATE || '0.13'),
-  currency: process.env.CURRENCY || 'USD',
+  currency: process.env.CURRENCY || 'BOB',
   stockLockMinutes: parseInt(process.env.STOCK_LOCK_MINUTES || '10', 10),
 };

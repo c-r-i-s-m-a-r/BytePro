@@ -22,6 +22,8 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       activo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      intentosFallidos: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      bloqueadoHasta: { type: DataTypes.DATE, allowNull: true },
     },
     {
       tableName: 'usuarios',

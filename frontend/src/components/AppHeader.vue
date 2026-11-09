@@ -1,8 +1,9 @@
 <template>
   <header class="site-header" :class="{ 'corporate-header': auth.isStaff }">
     <div class="container header-inner">
-      <RouterLink class="brand" :to="auth.isStaff ? '/admin' : '/'">
-        <span class="brand-mark">BP</span>
+      <!-- REQ-NAV-03: El logo lleva al portal si es staff y al catálogo si el cliente está autenticado -->
+      <RouterLink class="brand" :to="brandTarget">
+        <img :src="byteproLogo" alt="BytePro" class="brand-logo" />
         <span>BytePro{{ auth.isStaff ? ' Portal' : '' }}</span>
       </RouterLink>
 
@@ -36,31 +37,63 @@
       <nav class="header-actions" aria-label="Acciones de cuenta">
         <!-- REQ-EMP-08: Enlaces públicos de retail solo para clientes/invitados -->
         <template v-if="!auth.isStaff">
-          <RouterLink class="header-link" to="/ayuda">Ayuda y Reclamos</RouterLink>
-          <RouterLink class="header-link" to="/seguimiento">Seguimiento</RouterLink>
+          <RouterLink
+            class="header-link"
+            to="/ayuda"
+            :class="{ active: ['help', 'support', 'claims'].includes(route.name) }"
+          >
+            <AppIcon name="help" :size="18" />
+            Ayuda y Reclamos
+          </RouterLink>
+          <RouterLink
+            class="header-link"
+            to="/seguimiento"
+            :class="{ active: ['tracking', 'tracking-alias'].includes(route.name) }"
+          >
+            <AppIcon name="truck-side" :size="18" />
+            Seguimiento
+          </RouterLink>
           <RouterLink class="header-link" to="/comparar">
+            <AppIcon name="transfer" :size="18" />
             Comparar
             <span v-if="compare.count" class="badge-count">{{ compare.count }}</span>
           </RouterLink>
-          <RouterLink class="header-link" to="/carrito">
+          <button
+            class="header-link header-cart-btn"
+            :class="{ active: route.name === 'cart' }"
+            type="button"
+            @click="abrirCarrito"
+          >
+            <AppIcon name="shopping-cart" :size="18" />
             Carrito
             <span v-if="cart.count" class="badge-count">{{ cart.count }}</span>
-          </RouterLink>
+          </button>
         </template>
 
         <template v-if="auth.isAuthenticated">
-          <RouterLink v-if="!auth.isStaff" class="header-link" to="/mis-pedidos">
+          <RouterLink
+            v-if="!auth.isStaff"
+            class="header-link"
+            to="/mis-pedidos"
+            :class="{ active: ['orders', 'account-orders', 'addresses'].includes(route.name) }"
+          >
+            <AppIcon name="cube" :size="18" />
             Mis pedidos
           </RouterLink>
           <span class="account-name" :title="auth.user.nombre">{{ auth.user.nombre }}</span>
           <RouterLink v-if="auth.isStaff" class="header-link font-semibold" to="/admin">
             Panel ({{ auth.funcionActiva }})
           </RouterLink>
-          <button class="btn btn-danger btn-sm" type="button" @click="logout">Salir</button>
+          <button class="btn btn-danger btn-sm header-logout-btn" type="button" @click="logout">
+            <AppIcon name="sign-out" :size="16" />
+            Salir
+          </button>
         </template>
         <template v-else>
-          <RouterLink class="header-link" to="/login">Ingresar</RouterLink>
-          <RouterLink class="header-link" to="/empresa/login">Empresa</RouterLink>
+          <RouterLink class="header-link" to="/login">
+            <AppIcon name="sign-in" :size="18" />
+            Ingresar
+          </RouterLink>
         </template>
       </nav>
     </div>
@@ -71,7 +104,9 @@
         <RouterLink
           class="category-link"
           :class="{ active: !catalog.filters.categoria }"
-          to="/"
+          :to="{ name: 'catalog' }"
+          active-class="category-route-match"
+          exact-active-class="category-route-match"
           @click.prevent="selectCategory('')"
         >
           Todo
@@ -82,18 +117,25 @@
           class="category-link"
           :class="{ active: catalog.filters.categoria === categoria.slug }"
           :to="{ name: 'catalog', query: { categoria: categoria.slug } }"
+          active-class="category-route-match"
+          exact-active-class="category-route-match"
           @click.prevent="selectCategory(categoria.slug)"
         >
           {{ categoria.nombre }}
         </RouterLink>
       </div>
     </div>
+
+    <CartDrawer :open="drawerAbierto" @close="cerrarCarrito" />
   </header>
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import byteproLogo from '../assets/icons/icon-bytepro.png';
+import AppIcon from './AppIcon.vue';
+import CartDrawer from './CartDrawer.vue';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
 import { useCatalogStore } from '../store/catalog';
@@ -107,6 +149,29 @@ const compare = useCompareStore();
 const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
+
+const drawerAbierto = computed(() => ui.cartDrawerOpen);
+
+const brandTarget = computed(() => {
+  if (auth.isStaff) return '/admin';
+  if (auth.isAuthenticated) return '/catalogo';
+  return '/';
+});
+
+function abrirCarrito() {
+  ui.openCartDrawer();
+}
+
+function cerrarCarrito() {
+  ui.closeCartDrawer();
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    ui.closeCartDrawer();
+  }
+);
 
 function formatRoleName(role) {
   const map = {
@@ -123,8 +188,14 @@ async function onCambiarFuncion(nueva) {
   try {
     await auth.cambiarFuncion(nueva);
     ui.success(`Función activa cambiada a: ${formatRoleName(nueva)}`);
-    if (route.name !== 'admin') {
-      router.push({ name: 'admin' });
+    const rutaDestino =
+      {
+        vendedor: 'admin-productos',
+        operaciones: 'admin-pedidos',
+        soporte: 'admin-soporte',
+      }[nueva] || 'admin-resumen';
+    if (route.name !== rutaDestino) {
+      router.push({ name: rutaDestino });
     }
   } catch (err) {
     ui.error('No se pudo cambiar la función');
@@ -168,9 +239,10 @@ function selectCategory(slug) {
 }
 
 function logout() {
+  ui.closeCartDrawer();
   auth.logout();
   cart.reset();
-  router.push({ name: 'catalog' });
+  router.push({ name: 'landing' });
 }
 
 onMounted(async () => {

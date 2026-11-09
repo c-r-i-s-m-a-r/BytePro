@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       proveedor: { type: DataTypes.STRING(40), allowNull: true },
       monto: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
-      moneda: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
+      moneda: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'BOB' },
       estado: {
         type: DataTypes.ENUM('pendiente', 'aprobado', 'rechazado', 'discrepancia'),
         allowNull: false,

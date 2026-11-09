@@ -1,6 +1,6 @@
 export function formatPrice(value) {
   const n = Number(value || 0);
-  return `$${n.toLocaleString('en-US', {
+  return `Bs. ${n.toLocaleString('es-BO', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

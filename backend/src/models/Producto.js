@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       garantiaMeses: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 12 },
       especificaciones: { type: DataTypes.JSON, allowNull: false, defaultValue: {} },
       imagenes: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
-      imagenPrincipal: { type: DataTypes.STRING(500), allowNull: true },
+      imagenPrincipal: { type: DataTypes.TEXT, allowNull: true },
       activo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       puntajePromedio: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
       totalResenas: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },

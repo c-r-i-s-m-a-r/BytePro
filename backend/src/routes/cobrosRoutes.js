@@ -6,7 +6,9 @@ const { authenticate } = require('../middlewares/auth');
 const router = Router();
 
 router.get('/metodos', cobroController.metodos);
+router.get('/sucursales', cobroController.sucursales);
 router.post('/checkout', authenticate, cobroController.checkout);
+router.patch('/checkout/entrega', authenticate, cobroController.actualizarEntrega);
 router.post('/pagar', authenticate, cobroController.pagar);
 router.get('/ventas/:ventaId', authenticate, cobroController.venta);
 router.get('/ventas/:ventaId/recibo', authenticate, cobroController.recibo);

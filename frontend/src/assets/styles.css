@@ -104,6 +104,10 @@ button {
   padding: var(--space-8) 0 var(--space-10);
 }
 
+.app-main-landing {
+  padding: 0;
+}
+
 /* ---------- Header ---------- */
 .site-header {
   width: 100%;
@@ -118,7 +122,7 @@ button {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  height: 72px;
+  height: 110px;
   width: 100%;
 }
 
@@ -142,6 +146,13 @@ button {
   place-items: center;
   font-size: 15px;
   font-weight: 700;
+}
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
 }
 
 .brand:hover {
@@ -184,15 +195,29 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  border-radius: var(--radius-pill);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .header-link:hover {
   color: var(--color-primary-dark);
 }
 
-.header-link.active {
+/* REQ-NAV-05: Estado activo persistente con color primario y fondo suave */
+.header-link.active,
+.header-link.router-link-active,
+.header-link.router-link-exact-active {
   color: var(--color-primary-dark);
   font-weight: 600;
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 6px var(--color-primary-soft);
+}
+
+.header-cart-btn {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .badge-count {
@@ -227,11 +252,17 @@ button {
   font-size: 14px;
   color: var(--color-text-secondary);
   white-space: nowrap;
+  border-radius: var(--radius-pill);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.category-link.active {
+.category-link.active,
+.category-link.router-link-active,
+.category-link.router-link-exact-active {
   color: var(--color-primary-dark);
   font-weight: 600;
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 6px var(--color-primary-soft);
 }
 
 .account-menu {
@@ -721,12 +752,17 @@ select:focus,
 
 .product-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: auto;
 }
 
 .product-actions .btn {
   flex: 1;
+}
+
+.product-actions .product-add-btn {
+  flex: 1 1 100%;
 }
 
 .compare-toggle {
@@ -1297,6 +1333,11 @@ select:focus,
   color: var(--color-text);
 }
 
+.summary-row.discount-row {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
 /* ---------- Auth ---------- */
 .auth-wrap {
   display: grid;
@@ -1311,6 +1352,19 @@ select:focus,
   border: 1px solid var(--color-border);
   border-radius: var(--radius-3xl);
   padding: var(--space-8);
+}
+
+.auth-brand {
+  display: inline-block;
+  margin-bottom: var(--space-4);
+  text-decoration: none;
+}
+
+.auth-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
 }
 
 .auth-card h1 {
@@ -1359,6 +1413,187 @@ select:focus,
 .kpi-value {
   font-size: 26px;
   font-weight: 700;
+}
+
+.analytics-panel {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}
+
+.analytics-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.analytics-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.granularity-switch {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-muted);
+  padding: 3px;
+  gap: 2px;
+}
+
+.granularity-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.granularity-btn:hover {
+  color: var(--color-primary);
+}
+
+.granularity-btn.active {
+  background: var(--color-white);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.analytics-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.analytics-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.analytics-total strong {
+  font-size: 18px;
+}
+
+.analytics-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 220px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg);
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.analytics-empty p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.analytics-chart {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.chart-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-white);
+}
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.chart-title {
+  margin: 0 0 2px;
+  font-size: 16px;
+}
+
+.chart-total {
+  font-size: 20px;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-grid line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.chart-axis-labels text {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.demand-share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 140px;
+}
+
+.demand-share-bar {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.demand-share-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.demand-share-value {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
 }
 
 .data-table th {
@@ -1458,6 +1693,20 @@ select:focus,
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.footer-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
 }
 
 /* ---------- Utilities ---------- */
@@ -1525,6 +1774,9 @@ select:focus,
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
   .filters-panel,
   .summary-card {
     position: static;
@@ -1569,6 +1821,16 @@ select:focus,
   }
   .kpi-grid {
     grid-template-columns: 1fr;
+  }
+  .analytics-totals {
+    grid-template-columns: 1fr;
+  }
+  .analytics-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .analytics-actions {
+    justify-content: space-between;
   }
   .detail-main-image {
     height: 260px;
@@ -2118,6 +2380,33 @@ select:focus,
   object-fit: contain;
 }
 
+.product-image-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.product-image-preview img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-muted);
+  padding: 6px;
+}
+
+.admin-product-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-muted);
+  padding: 2px;
+}
+
 .address-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -2189,7 +2478,7 @@ select:focus,
 }
 
 .admin-sidebar {
-  width: 220px;
+  width: 228px;
   background: var(--color-white);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
