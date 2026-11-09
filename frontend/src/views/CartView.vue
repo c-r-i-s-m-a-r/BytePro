@@ -175,3 +175,16 @@ function goCheckout() {
 
 onMounted(() => cart.fetch());
 </script>
+
+<style scoped>
+.cart-thumb {
+  overflow: hidden;
+}
+
+.cart-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+</style>

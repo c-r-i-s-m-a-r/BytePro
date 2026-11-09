@@ -1287,6 +1287,14 @@ select:focus,
   color: var(--color-text-muted);
   text-transform: uppercase;
   text-align: center;
+  overflow: hidden;
+}
+
+.cart-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .cart-item-title {
