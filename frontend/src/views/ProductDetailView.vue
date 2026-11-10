@@ -379,3 +379,34 @@ watch(
 
 onMounted(loadProduct);
 </script>
+
+<style scoped>
+.detail-main-image {
+  overflow: hidden;
+  position: relative;
+  padding: var(--space-2, 8px);
+}
+
+.detail-main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.detail-thumbs {
+  overflow-x: auto;
+}
+
+.thumb {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+</style>
