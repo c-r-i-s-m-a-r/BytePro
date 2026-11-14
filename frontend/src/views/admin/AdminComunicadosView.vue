@@ -127,8 +127,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useAuthStore } from '../../store/auth';
 import { useUiStore } from '../../store/ui';
 import { formatDateTime } from '../../utils/format';
@@ -187,8 +188,8 @@ function cancelarFormulario() {
   limpiarFormulario();
 }
 
-async function cargarComunicados() {
-  cargando.value = true;
+async function cargarComunicados(silencioso = false) {
+  if (!silencioso) cargando.value = true;
   error.value = '';
   try {
     const { data } = await api.get('/admin/comunicados');
@@ -196,7 +197,7 @@ async function cargarComunicados() {
   } catch (err) {
     error.value = apiErrorMessage(err);
   } finally {
-    cargando.value = false;
+    if (!silencioso) cargando.value = false;
   }
 }
 
@@ -273,7 +274,19 @@ async function eliminarComunicado(comunicado) {
   }
 }
 
-onMounted(cargarComunicados);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargarComunicados();
+  unsubscribeRealtime = subscribeToTables(['comunicados'], () =>
+    cargarComunicados(true)
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>
 
 <style scoped>

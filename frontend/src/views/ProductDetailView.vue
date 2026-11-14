@@ -225,12 +225,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import QuantitySelector from '../components/QuantitySelector.vue';
 import RatingStars from '../components/RatingStars.vue';
 import ReviewForm from '../components/ReviewForm.vue';
 import api, { apiErrorMessage, apiErrorDetails } from '../services/api';
+import { subscribeToTables } from '../services/realtime';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
 import { useCompareStore } from '../store/compare';
@@ -324,6 +325,24 @@ async function loadProduct() {
   }
 }
 
+async function refrescarProductoSilencioso() {
+  try {
+    const { data } = await api.get(`/productos/${props.slug}`);
+    const varianteActual = selectedVarianteId.value;
+    product.value = data;
+
+    if (!data.variantes.some((variante) => variante.id === varianteActual)) {
+      const primera = data.variantes.find((variante) => variante.disponible) || data.variantes[0];
+      selectedVarianteId.value = primera ? primera.id : null;
+    }
+
+    activeImage.value = Math.min(activeImage.value, Math.max(galleryImages.value.length - 1, 0));
+    cantidad.value = Math.min(cantidad.value, Math.max(stockUnits.value, 1));
+  } catch (err) {
+    // El refresco silencioso no interrumpe la vista de detalle.
+  }
+}
+
 function selectVariante(variante) {
   if (!variante.disponible) return;
   selectedVarianteId.value = variante.id;
@@ -372,12 +391,25 @@ async function submitReview(payload) {
   }
 }
 
+let unsubscribeRealtime = null;
+
 watch(
   () => props.slug,
   () => loadProduct()
 );
 
-onMounted(loadProduct);
+onMounted(() => {
+  loadProduct();
+  unsubscribeRealtime = subscribeToTables(
+    ['productos', 'variantes', 'inventarios', 'resenas'],
+    refrescarProductoSilencioso
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>
 
 <style scoped>

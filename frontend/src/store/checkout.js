@@ -170,6 +170,13 @@ export const useCheckoutStore = defineStore('checkout', {
         this.processing = false;
       }
     },
+    // REQ-SUP-07: refresco silencioso del checkout sin bloquear el formulario.
+    async refrescarSesionSilenciosa(payload = {}) {
+      if (!this.session) return null;
+      const { data } = await api.post('/cobros/checkout', payload);
+      this.session = data;
+      return data;
+    },
     async actualizarEntrega({ metodoEntrega, sucursalId, direccionEntrega }) {
       if (!this.session) return null;
       this.error = null;

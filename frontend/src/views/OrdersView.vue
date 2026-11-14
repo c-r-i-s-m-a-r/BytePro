@@ -309,9 +309,10 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import api, { apiErrorMessage } from '../services/api';
+import { subscribeToTables } from '../services/realtime';
 import { useAuthStore } from '../store/auth';
 import { useUiStore } from '../store/ui';
 import { formatDateTime, formatPrice } from '../utils/format';
@@ -446,8 +447,10 @@ async function borrarDireccion(id) {
   }
 }
 
-async function cargarDatos() {
-  loading.value = true;
+let unsubscribeRealtime = null;
+
+async function cargarDatos(silencioso = false) {
+  if (!silencioso) loading.value = true;
   error.value = '';
   try {
     const [pedRes, dirRes] = await Promise.all([
@@ -459,9 +462,31 @@ async function cargarDatos() {
   } catch (err) {
     error.value = apiErrorMessage(err);
   } finally {
-    loading.value = false;
+    if (!silencioso) loading.value = false;
   }
 }
 
-onMounted(cargarDatos);
+async function refrescarEnVivo() {
+  await cargarDatos(true);
+  if (!pedidoActivoId.value) return;
+  try {
+    const { data } = await api.get(`/clientes/pedidos/${pedidoActivoId.value}`);
+    detalleActual.value = data;
+  } catch (err) {
+    // El detalle abierto se mantiene si el refresco falla.
+  }
+}
+
+onMounted(() => {
+  cargarDatos();
+  unsubscribeRealtime = subscribeToTables(
+    ['ventas', 'despachos', 'recibos'],
+    refrescarEnVivo
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>

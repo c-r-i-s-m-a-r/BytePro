@@ -165,8 +165,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatDateTime } from '../../utils/format';
 
@@ -267,5 +268,18 @@ async function registrarMovimiento() {
   }
 }
 
-onMounted(cargar);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargar();
+  unsubscribeRealtime = subscribeToTables(
+    ['inventarios', 'kardex', 'productos', 'variantes'],
+    cargar
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>

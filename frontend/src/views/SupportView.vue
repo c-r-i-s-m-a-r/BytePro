@@ -147,9 +147,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, onUnmounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import api, { apiErrorMessage } from '../services/api';
+import { subscribeToTables } from '../services/realtime';
 import { useAuthStore } from '../store/auth';
 import { useUiStore } from '../store/ui';
 
@@ -170,12 +171,33 @@ const form = reactive({
 
 const errors = reactive({});
 
+let unsubscribeRealtime = null;
+
+async function refrescarTicketEnVivo() {
+  if (!ticketCreado.value) return;
+  const referencia = ticketCreado.value.id || ticketCreado.value.codigoTicket;
+  if (!referencia) return;
+
+  try {
+    const { data } = await api.get(`/soporte/reclamos/${referencia}`);
+    ticketCreado.value = data;
+  } catch (err) {
+    // La consulta del ticket se mantiene si el refresco falla.
+  }
+}
+
 onMounted(() => {
   if (auth.user) {
     form.nombreContacto = auth.user.nombre || '';
     form.email = auth.user.email || '';
     form.celular = auth.user.telefono || '';
   }
+  unsubscribeRealtime = subscribeToTables(['reclamos'], refrescarTicketEnVivo);
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
 });
 
 function validar() {

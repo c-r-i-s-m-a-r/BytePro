@@ -140,8 +140,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useAuthStore } from '../../store/auth';
 import { formatDateTime } from '../../utils/format';
 
@@ -215,5 +216,15 @@ async function cerrarTicket(ticket) {
   }
 }
 
-onMounted(cargarReclamos);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargarReclamos();
+  unsubscribeRealtime = subscribeToTables(['reclamos'], cargarReclamos);
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>

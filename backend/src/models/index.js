@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const realtimeHub = require('../services/realtimeHub');
 
 const Categoria = require('./Categoria')(sequelize, DataTypes);
 const Producto = require('./Producto')(sequelize, DataTypes);
@@ -122,12 +123,25 @@ Sucursal.hasMany(Checkout, { foreignKey: 'sucursalId', as: 'checkouts' });
 Checkout.belongsTo(Sucursal, { foreignKey: 'sucursalId', as: 'sucursal' });
 
 async function ensureColumns(tableName, columns) {
-  const [info] = await sequelize.query(`PRAGMA table_info(${tableName});`);
-  const existing = new Set((info || []).map((col) => col.name));
+  const queryInterface = sequelize.getQueryInterface();
+  let descripcion;
+
+  try {
+    descripcion = await queryInterface.describeTable(tableName);
+  } catch (err) {
+    // La tabla aún no existe en este motor/esquema; sync() la creará.
+    return;
+  }
+
+  const existing = new Set(Object.keys(descripcion || {}));
   for (const [colName, colType] of Object.entries(columns)) {
     if (!existing.has(colName)) {
+      const tipo =
+        sequelize.getDialect() === 'postgres'
+          ? String(colType).replace(/DATETIME/gi, 'TIMESTAMP WITH TIME ZONE')
+          : colType;
       // eslint-disable-next-line no-await-in-loop
-      await sequelize.query(`ALTER TABLE ${tableName} ADD COLUMN ${colName} ${colType};`);
+      await sequelize.query(`ALTER TABLE ${tableName} ADD COLUMN ${colName} ${tipo};`);
     }
   }
 }
@@ -310,6 +324,9 @@ sequelize.addHook('afterBulkSync', async () => {
     // Non-fatal during partial syncs
   }
 });
+
+// REQ-SUP-04: Hooks globales de Sequelize para alimentar el hub SSE.
+realtimeHub.registerSequelizeHooks(sequelize);
 
 module.exports = {
   sequelize,

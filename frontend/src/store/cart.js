@@ -39,6 +39,9 @@ export const useCartStore = defineStore('cart', {
         this.loading = false;
       }
     },
+    async fetchCart() {
+      return this.fetch();
+    },
     async add(varianteId, cantidad = 1) {
       const ui = useUiStore();
       this.loading = true;

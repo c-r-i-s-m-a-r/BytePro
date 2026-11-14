@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const {
+  sequelize,
   Usuario,
   Empleado,
   Categoria,
@@ -120,9 +121,82 @@ const CATEGORIAS_BASE = [
   },
 ];
 
+// Tablas críticas para la publicación Realtime de Supabase.
+const TABLAS_REALTIME = [
+  'productos',
+  'variantes',
+  'inventarios',
+  'categorias',
+  'resenas',
+  'ventas',
+  'lineas_venta',
+  'venta_items',
+  'despachos',
+  'recibos',
+  'transacciones',
+  'kardex',
+  'sucursales',
+  'configuraciones_empresa',
+  'configuracion_empresa',
+  'proveedores',
+  'comunicados',
+  'reclamos',
+];
+
+async function configurarRealtimePostgres() {
+  if (sequelize.getDialect() !== 'postgres') return;
+
+  let publicacionDisponible = false;
+  try {
+    const [filas] = await sequelize.query(
+      "SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime' LIMIT 1;"
+    );
+    publicacionDisponible = filas.length > 0;
+  } catch (err) {
+    console.warn('[bootstrap] No se pudo verificar la publicación supabase_realtime:', err.message);
+    return;
+  }
+
+  for (const tabla of TABLAS_REALTIME) {
+    try {
+      const [existe] = await sequelize.query(
+        `SELECT to_regclass('public.${tabla}') AS reg;`
+      );
+      if (!existe.length || !existe[0].reg) continue;
+
+      try {
+        await sequelize.query(`ALTER TABLE public.${tabla} REPLICA IDENTITY FULL;`);
+      } catch (err) {
+        console.warn(`[bootstrap] REPLICA IDENTITY FULL omitido en ${tabla}:`, err.message);
+      }
+
+      if (!publicacionDisponible) continue;
+
+      const [miembros] = await sequelize.query(
+        `SELECT 1 FROM pg_publication_tables
+         WHERE pubname = 'supabase_realtime'
+           AND schemaname = 'public'
+           AND tablename = '${tabla}'
+         LIMIT 1;`
+      );
+
+      if (!miembros.length) {
+        try {
+          await sequelize.query(
+            `ALTER PUBLICATION supabase_realtime ADD TABLE public.${tabla};`
+          );
+        } catch (err) {
+          console.warn(`[bootstrap] No se pudo añadir ${tabla} a supabase_realtime:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.warn(`[bootstrap] Configuración Realtime omitida en ${tabla}:`, err.message);
+    }
+  }
+}
+
 async function bootstrap() {
   try {
-    // 1. Administrador Inicial si no existe ningún admin
     const adminExistente = await Usuario.findOne({
       where: {
         [Op.or]: [{ rol: 'admin' }, { email: 'admin@bytepro.com' }],
@@ -150,11 +224,10 @@ async function bootstrap() {
         },
       });
 
-      // eslint-disable-next-line no-console
       console.log('[bootstrap] Administrador inicial creado (admin@bytepro.com)');
     }
 
-    // 2. Categorías Base oficiales (9 categorías)
+    // 2. Categorías Base oficiales
     for (const data of CATEGORIAS_BASE) {
       // eslint-disable-next-line no-await-in-loop
       await Categoria.findOrCreate({
@@ -175,6 +248,9 @@ async function bootstrap() {
         moneda: 'BOB',
       },
     });
+
+    // 4. Realtime de Supabase (solo PostgreSQL)
+    await configurarRealtimePostgres();
 
     // eslint-disable-next-line no-console
     console.log('[bootstrap] Inicialización completada exitosamente.');

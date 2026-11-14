@@ -85,8 +85,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import api from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { formatDateTime, formatPrice } from '../../utils/format';
 
 const transacciones = ref([]);
@@ -105,5 +106,18 @@ async function cargar() {
   }
 }
 
-onMounted(cargar);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargar();
+  unsubscribeRealtime = subscribeToTables(
+    ['ventas', 'transacciones', 'kardex', 'reclamos'],
+    cargar
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>

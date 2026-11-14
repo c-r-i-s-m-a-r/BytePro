@@ -540,6 +540,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import api from '../services/api';
+import { subscribeToTables } from '../services/realtime';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
 import { useCheckoutStore } from '../store/checkout';
@@ -592,6 +593,7 @@ const errors = reactive({});
 const restante = ref(0);
 const enviando = ref(false);
 let timer = null;
+let unsubscribeRealtime = null;
 
 const direccionesGuardadas = computed(() =>
   direccionesLista.value.length ? direccionesLista.value : checkout.direccionesGuardadas
@@ -873,6 +875,41 @@ async function reintentarSesion() {
   }
 }
 
+async function refrescarCheckoutEnVivo() {
+  if (!checkout.session) return;
+
+  const esRetiro = metodoEntrega.value === 'retiro';
+  const payload = {
+    metodoEntrega: metodoEntrega.value,
+    sucursalId: esRetiro ? sucursalSeleccionadaId.value : null,
+    notas: esRetiro ? notasRetiro.value.trim() || null : null,
+  };
+
+  if (!esRetiro && direccionEntregaValida()) {
+    payload.direccionEntrega = construirDireccionEntrega();
+  }
+
+  try {
+    await checkout.refrescarSesionSilenciosa(payload);
+  } catch (err) {
+    try {
+      const { data } = await api.get('/cobros/sucursales');
+      const disponibles = data.items || [];
+      if (checkout.session) {
+        checkout.session = { ...checkout.session, sucursales: disponibles };
+      }
+      if (
+        esRetiro &&
+        !disponibles.some((sucursal) => sucursal.id === sucursalSeleccionadaId.value)
+      ) {
+        sucursalSeleccionadaId.value = disponibles.length ? disponibles[0].id : null;
+      }
+    } catch (error) {
+      // El refresco silencioso no interrumpe el formulario de pago.
+    }
+  }
+}
+
 function iniciarContador(segundos) {
   restante.value = Math.max(0, Number(segundos) || 0);
   if (timer) clearInterval(timer);
@@ -924,6 +961,18 @@ function nuevaCompra() {
 }
 
 onMounted(async () => {
+  unsubscribeRealtime = subscribeToTables(
+    [
+      'sucursales',
+      'configuraciones_empresa',
+      'configuracion_empresa',
+      'productos',
+      'variantes',
+      'inventarios',
+    ],
+    refrescarCheckoutEnVivo
+  );
+
   await cart.fetch();
 
   try {
@@ -955,5 +1004,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
 });
 </script>

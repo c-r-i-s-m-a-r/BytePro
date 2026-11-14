@@ -222,9 +222,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AnalyticsChart from '../../components/AnalyticsChart.vue';
 import api from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { formatPrice } from '../../utils/format';
 
 const opcionesGranularidad = [
@@ -349,7 +350,23 @@ async function cargar() {
 
 watch(granularidad, cargarAnalitica);
 
-onMounted(cargar);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargar();
+  unsubscribeRealtime = subscribeToTables(
+    ['ventas', 'inventarios', 'reclamos', 'despachos', 'productos'],
+    () => {
+      cargarResumen();
+      cargarAnalitica();
+    }
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>
 
 <style scoped>

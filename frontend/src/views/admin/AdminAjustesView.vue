@@ -276,8 +276,9 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatPrice } from '../../utils/format';
 
@@ -337,7 +338,7 @@ function aplicarConfiguracion(config) {
 }
 
 async function cargarAjustes(silencioso = false) {
-  cargando.value = true;
+  if (!silencioso) cargando.value = true;
   if (!silencioso) limpiarMensajes();
   try {
     const { data } = await api.get('/admin/ajustes');
@@ -347,7 +348,7 @@ async function cargarAjustes(silencioso = false) {
   } catch (err) {
     error.value = apiErrorMessage(err);
   } finally {
-    cargando.value = false;
+    if (!silencioso) cargando.value = false;
   }
 }
 
@@ -545,7 +546,20 @@ async function cambiarEstadoSucursal(sucursal) {
   }
 }
 
-onMounted(cargarAjustes);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargarAjustes();
+  unsubscribeRealtime = subscribeToTables(
+    ['proveedores', 'sucursales', 'configuraciones_empresa', 'configuracion_empresa'],
+    () => cargarAjustes(true)
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>
 
 <style scoped>

@@ -84,6 +84,22 @@ export const useCatalogStore = defineStore('catalog', {
       this.initialized = true;
       await Promise.all([this.fetchCategorias(), this.fetchProductos()]);
     },
+    // REQ-SUP-06: refresco en segundo plano sin activar loading (sin parpadeos).
+    async refreshSilently() {
+      try {
+        const [productosRes, categoriasRes] = await Promise.all([
+          api.get('/productos', { params: this.buildParams() }),
+          api.get('/categorias'),
+        ]);
+        const data = productosRes.data || {};
+        this.items = data.items || [];
+        if (data.pagination) this.pagination = data.pagination;
+        if (data.facetas) this.facetas = data.facetas;
+        this.categorias = categoriasRes.data?.items || [];
+      } catch (err) {
+        // El refresco silencioso no debe interrumpir la navegación del cliente.
+      }
+    },
     setFilter(key, value) {
       this.filters[key] = value;
       if (key === 'categoria') {

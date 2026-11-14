@@ -118,8 +118,9 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatDateTime, formatPrice } from '../../utils/format';
 
@@ -195,5 +196,18 @@ async function avanzarEstadoPedido(pedido, nuevoEstado) {
   }
 }
 
-onMounted(cargar);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargar();
+  unsubscribeRealtime = subscribeToTables(
+    ['ventas', 'despachos', 'transacciones'],
+    cargar
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>

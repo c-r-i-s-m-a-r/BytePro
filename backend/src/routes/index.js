@@ -12,6 +12,9 @@ const soporteRoutes = require('./soporteRoutes');
 const distribucionController = require('../controllers/distribucionController');
 const clienteController = require('../controllers/clienteController');
 const soporteController = require('../controllers/soporteController');
+const realtimeHub = require('../services/realtimeHub');
+const env = require('../config/env');
+const { sequelize } = require('../models');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { requireRole } = require('../middlewares/rbac');
 
@@ -20,6 +23,18 @@ const router = Router();
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'bytepro-api' });
 });
+
+// REQ-SUP-04: Configuración pública y canal SSE de tiempo real.
+router.get('/config/public', (req, res) => {
+  res.json({
+    supabaseUrl: env.supabaseUrl,
+    supabaseAnonKey: env.supabaseAnonKey,
+    dialect: sequelize.getDialect(),
+    realtimeEnabled: true,
+  });
+});
+
+router.get('/realtime/stream', realtimeHub.subscribeSse);
 
 router.use('/auth', authRoutes);
 router.use('/productos', productoRoutes);

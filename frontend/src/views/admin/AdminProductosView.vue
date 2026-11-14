@@ -353,8 +353,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatPrice } from '../../utils/format';
 
@@ -707,7 +708,20 @@ async function eliminarProducto(p) {
   }
 }
 
-onMounted(cargar);
+let unsubscribeRealtime = null;
+
+onMounted(() => {
+  cargar();
+  unsubscribeRealtime = subscribeToTables(
+    ['productos', 'variantes', 'inventarios', 'categorias'],
+    cargar
+  );
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
+});
 </script>
 
 <style scoped>

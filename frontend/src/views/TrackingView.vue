@@ -236,9 +236,10 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import api, { apiErrorMessage } from '../services/api';
+import { subscribeToTables } from '../services/realtime';
 import { useAuthStore } from '../store/auth';
 import { formatDate, formatDateTime, formatPrice } from '../utils/format';
 
@@ -258,11 +259,11 @@ function estadoClass(estado) {
   return '';
 }
 
-async function cargarTracking(codigo) {
+async function cargarTracking(codigo, silencioso = false) {
   const limpio = String(codigo || '').trim();
   if (!limpio) return;
 
-  loading.value = true;
+  if (!silencioso) loading.value = true;
   error.value = '';
   try {
     const { data } = await api.get(`/distribucion/tracking/${encodeURIComponent(limpio)}`);
@@ -271,8 +272,15 @@ async function cargarTracking(codigo) {
     tracking.value = null;
     error.value = apiErrorMessage(err);
   } finally {
-    loading.value = false;
+    if (!silencioso) loading.value = false;
   }
+}
+
+async function refrescarEnVivo() {
+  const codigo =
+    tracking.value?.codigoSeguimiento || route.params.codigo || route.query.codigo;
+  if (!codigo) return;
+  await cargarTracking(codigo, true);
 }
 
 function buscarGuia() {
@@ -295,11 +303,19 @@ watch(
   }
 );
 
+let unsubscribeRealtime = null;
+
 onMounted(() => {
   const inicial = route.params.codigo || route.query.codigo || '';
   if (inicial) {
     codigoInput.value = String(inicial);
     cargarTracking(inicial);
   }
+  unsubscribeRealtime = subscribeToTables(['ventas', 'despachos'], refrescarEnVivo);
+});
+
+onUnmounted(() => {
+  if (unsubscribeRealtime) unsubscribeRealtime();
+  unsubscribeRealtime = null;
 });
 </script>
