@@ -102,6 +102,12 @@ const routes = [
     meta: { guestOnly: true },
   },
   {
+    path: '/recuperar-contrasena',
+    name: 'forgot-password',
+    component: () => import('../views/ForgotPasswordView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
     path: '/empresa/login',
     name: 'company-login',
     component: () => import('../views/CompanyLoginView.vue'),

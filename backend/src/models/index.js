@@ -199,6 +199,8 @@ sequelize.addHook('afterBulkSync', async () => {
       funcion_activa: ' VARCHAR(40)',
       intentos_fallidos: ' INTEGER DEFAULT 0',
       bloqueado_hasta: ' DATETIME',
+      reset_password_token: ' VARCHAR(128)',
+      reset_password_expires: ' DATETIME',
     });
 
     // Categoría permanente "Accesorios" (REQ-CAT-15)

@@ -35,6 +35,28 @@ async function me(req, res) {
   res.json({ user: req.user.toSafeJSON() });
 }
 
+async function solicitarRecuperacionPassword(req, res, next) {
+  try {
+    const data = await authService.solicitarRecuperacionPassword(req.body?.email);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function restablecerPassword(req, res, next) {
+  try {
+    const data = await authService.restablecerPasswordConCodigo({
+      email: req.body?.email,
+      codigo: req.body?.codigo,
+      nuevoPassword: req.body?.nuevoPassword || req.body?.password,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function cambiarFuncionActiva(req, res, next) {
   try {
     const { funcion } = req.body || {};
@@ -66,4 +88,12 @@ async function cambiarFuncionActiva(req, res, next) {
   }
 }
 
-module.exports = { register, login, loginEmpresa, me, cambiarFuncionActiva };
+module.exports = {
+  register,
+  login,
+  loginEmpresa,
+  me,
+  cambiarFuncionActiva,
+  solicitarRecuperacionPassword,
+  restablecerPassword,
+};

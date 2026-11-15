@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Reclamo, Usuario } = require('../models');
 const AppError = require('../utils/AppError');
+const emailService = require('./emailService');
 
 const TIPOS_VALIDOS = [
   'CONSULTA_PRODUCTO',
@@ -196,6 +197,19 @@ async function resolverCaso({ idOrCodigo, solucion, usuario }) {
     item.empleadoAsignadoId = usuario.id;
   }
   await item.save();
+
+  // REQ-EML-06: notificación de resolución al correo de contacto del ticket.
+  try {
+    await emailService.enviarResolucionReclamo({
+      reclamo: item,
+      solucion: sol,
+      usuario,
+    });
+  } catch (err) {
+    console.warn(
+      `[email] No se pudo notificar la resolución del reclamo: ${err.message}`
+    );
+  }
 
   return obtenerReclamoPorIdOCodigo(item.id);
 }

@@ -7,6 +7,8 @@ const router = Router();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/login-empresa', authController.loginEmpresa);
+router.post('/recuperar-password', authController.solicitarRecuperacionPassword);
+router.post('/restablecer-password', authController.restablecerPassword);
 router.get('/me', authenticate, authController.me);
 router.post('/cambiar-funcion', authenticate, authController.cambiarFuncionActiva);
 router.patch('/cambiar-funcion', authenticate, authController.cambiarFuncionActiva);

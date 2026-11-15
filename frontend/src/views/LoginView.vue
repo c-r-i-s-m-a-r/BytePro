@@ -35,6 +35,7 @@
         </div>
 
         <p v-if="mensajeError" class="field-error mb-4">{{ mensajeError }}</p>
+        <p v-if="mensajeExito" class="field-success mb-4">{{ mensajeExito }}</p>
 
         <button
           class="btn btn-primary btn-block"
@@ -44,6 +45,10 @@
           {{ auth.loading ? 'Ingresando…' : 'Ingresar' }}
         </button>
       </form>
+
+      <p class="auth-footer auth-forgot">
+        <RouterLink :to="{ name: 'forgot-password' }">¿Olvidaste tu contraseña?</RouterLink>
+      </p>
 
       <p class="auth-footer">
         ¿No tienes cuenta?
@@ -83,6 +88,12 @@ const mensajeError = computed(() => {
   }
   return error.value;
 });
+
+const mensajeExito = computed(() =>
+  route.query.recuperado
+    ? 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.'
+    : ''
+);
 
 watch(segundosRestantes, (valor, anterior) => {
   if (anterior > 0 && valor === 0) {

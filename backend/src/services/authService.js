@@ -1,9 +1,18 @@
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { Usuario, Cliente } = require('../models');
 const { hashPassword, verifyPassword } = require('../utils/hash');
 const { signToken } = require('../utils/jwt');
 const { validateRegistration } = require('../utils/validators');
 const AppError = require('../utils/AppError');
+const emailService = require('./emailService');
+const env = require('../config/env');
+
+const MENSAJE_RECUPERACION_GENERICO =
+  'Si el correo corresponde a una cuenta de cliente registrada, recibirás un código temporal para restablecer tu contraseña.';
+const MENSAJE_CODIGO_INVALIDO =
+  'El código de recuperación es inválido o ha expirado. Solicita uno nuevo.';
+const MINUTOS_VIGENCIA_CODIGO = 15;
 
 const UMBRAL_INTENTOS_CLIENTE = 8;
 const UMBRAL_INTENTOS_EMPLEADO = 5;
@@ -187,4 +196,103 @@ async function findById(id) {
   return usuario;
 }
 
-module.exports = { register, login, findById };
+function hashearCodigo(codigo) {
+  return crypto.createHash('sha256').update(String(codigo)).digest('hex');
+}
+
+function compararHashes(a, b) {
+  const bufferA = Buffer.from(String(a || ''), 'utf8');
+  const bufferB = Buffer.from(String(b || ''), 'utf8');
+  if (bufferA.length !== bufferB.length) return false;
+  return crypto.timingSafeEqual(bufferA, bufferB);
+}
+
+/**
+ * REQ-EML-01: solicitud de código exclusiva para clientes. La respuesta es
+ * siempre genérica para impedir la enumeración de cuentas.
+ */
+async function solicitarRecuperacionPassword(email) {
+  const generico = { ok: true, mensaje: MENSAJE_RECUPERACION_GENERICO };
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return generico;
+
+  const usuario = await Usuario.findOne({ where: { email: normalizedEmail } });
+  if (!usuario || usuario.rol !== 'cliente') return generico;
+
+  const codigo = crypto.randomInt(100000, 999999).toString();
+  usuario.resetPasswordToken = hashearCodigo(codigo);
+  usuario.resetPasswordExpires = new Date(
+    Date.now() + MINUTOS_VIGENCIA_CODIGO * 60 * 1000
+  );
+  await usuario.save();
+
+  try {
+    await emailService.enviarCodigoRecuperacion({
+      usuario,
+      codigo,
+      expiraMinutos: MINUTOS_VIGENCIA_CODIGO,
+    });
+  } catch (err) {
+    console.warn(`[email] No se pudo enviar el código de recuperación: ${err.message}`);
+  }
+
+  return generico;
+}
+
+/**
+ * REQ-EML-02: validación del código temporal y actualización segura de la
+ * contraseña, limpiando la penalización por intentos fallidos.
+ */
+async function restablecerPasswordConCodigo({ email, codigo, nuevoPassword }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const codigoLimpio = String(codigo || '').trim();
+
+  if (!nuevoPassword || String(nuevoPassword).length < env.passwordMinLength) {
+    throw new AppError(
+      `La nueva contraseña debe tener al menos ${env.passwordMinLength} caracteres`,
+      400
+    );
+  }
+
+  if (!normalizedEmail || !codigoLimpio) {
+    throw new AppError(MENSAJE_CODIGO_INVALIDO, 400);
+  }
+
+  const usuario = await Usuario.findOne({ where: { email: normalizedEmail } });
+  if (!usuario || usuario.rol !== 'cliente') {
+    throw new AppError(MENSAJE_CODIGO_INVALIDO, 400);
+  }
+
+  if (!usuario.resetPasswordToken || !usuario.resetPasswordExpires) {
+    throw new AppError(MENSAJE_CODIGO_INVALIDO, 400);
+  }
+
+  const expira = new Date(usuario.resetPasswordExpires).getTime();
+  if (!Number.isFinite(expira) || expira <= Date.now()) {
+    throw new AppError(MENSAJE_CODIGO_INVALIDO, 400);
+  }
+
+  if (!compararHashes(hashearCodigo(codigoLimpio), usuario.resetPasswordToken)) {
+    throw new AppError(MENSAJE_CODIGO_INVALIDO, 400);
+  }
+
+  usuario.passwordHash = await hashPassword(String(nuevoPassword));
+  usuario.resetPasswordToken = null;
+  usuario.resetPasswordExpires = null;
+  usuario.intentosFallidos = 0;
+  usuario.bloqueadoHasta = null;
+  await usuario.save();
+
+  return {
+    ok: true,
+    mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
+  };
+}
+
+module.exports = {
+  register,
+  login,
+  findById,
+  solicitarRecuperacionPassword,
+  restablecerPasswordConCodigo,
+};

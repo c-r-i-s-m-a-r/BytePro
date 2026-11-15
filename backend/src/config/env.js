@@ -26,4 +26,10 @@ module.exports = {
   taxRate: parseFloat(process.env.TAX_RATE || '0.13'),
   currency: process.env.CURRENCY || 'BOB',
   stockLockMinutes: parseInt(process.env.STOCK_LOCK_MINUTES || '10', 10),
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  smtpFrom: process.env.SMTP_FROM || '"BytePro Hardware" <notificaciones@bytepro.com>',
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
 };

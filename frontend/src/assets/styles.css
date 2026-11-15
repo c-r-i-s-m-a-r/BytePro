@@ -1421,6 +1421,34 @@ select:focus,
   text-align: center;
 }
 
+.auth-forgot {
+  margin-top: var(--space-3);
+  margin-bottom: 0;
+}
+
+.field-success {
+  color: var(--color-success);
+  font-size: 13px;
+}
+
+.recovery-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 9999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 13px;
+}
+
+.recovery-countdown-expired {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .company-auth {
   background: var(--color-bg-muted);
 }

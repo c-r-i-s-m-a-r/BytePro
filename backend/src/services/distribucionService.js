@@ -698,13 +698,18 @@ async function actualizarEstadoDespacho({
     }
   });
 
-  const notificacion = await emailService.enviarActualizacionEnvio({
-    despacho,
-    venta,
-    usuario: clienteUsuario,
-    estado: destinoRaw,
-    ubicacion: ubicacionFinal,
-  });
+  // REQ-EML-05: solo EN_CAMINO y ENTREGADO despachan correo al cliente.
+  let notificacion = { omitido: true, razon: 'Estado no requiere notificación' };
+  if (destinoRaw === 'EN_CAMINO' || destinoRaw === 'ENTREGADO') {
+    notificacion = await emailService.enviarActualizacionEnvio({
+      despacho,
+      venta,
+      usuario: clienteUsuario,
+      estado: destinoRaw,
+      ubicacion: ubicacionFinal,
+      nota: notaFinal,
+    });
+  }
 
   return {
     ...serializarDespacho(despacho, { publico: false }),

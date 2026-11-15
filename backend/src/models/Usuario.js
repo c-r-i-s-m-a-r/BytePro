@@ -24,6 +24,8 @@ module.exports = (sequelize, DataTypes) => {
       activo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       intentosFallidos: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       bloqueadoHasta: { type: DataTypes.DATE, allowNull: true },
+      resetPasswordToken: { type: DataTypes.STRING(128), allowNull: true },
+      resetPasswordExpires: { type: DataTypes.DATE, allowNull: true },
     },
     {
       tableName: 'usuarios',
