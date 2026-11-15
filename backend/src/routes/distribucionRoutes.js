@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const distribucionController = require('../controllers/distribucionController');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
-const { requireStaff, requireActiveFunction } = require('../middlewares/rbac');
+const { requireDispatchOperator } = require('../middlewares/rbac');
 
 const router = Router();
 
@@ -16,44 +16,38 @@ router.get('/despachos/:idOrCodigo', optionalAuth, distribucionController.tracki
 router.patch(
   '/despachos/:idOrCodigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 router.put(
   '/despachos/:idOrCodigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 router.post(
   '/despachos/:idOrCodigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 
 router.patch(
   '/tracking/:codigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 router.put(
   '/tracking/:codigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 router.post(
   '/tracking/:codigo/estado',
   authenticate,
-  requireStaff,
-  requireActiveFunction('operaciones', 'admin'),
+  requireDispatchOperator,
   distribucionController.actualizarEstado
 );
 

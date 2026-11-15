@@ -467,6 +467,7 @@ async function actualizarEstadoPedido(req, res, next) {
       ubicacion: body.ubicacion || body.ubicacionActual || body.puntoControl,
       puntoControl: body.puntoControl || body.ubicacion,
       nota: body.nota || body.comentario,
+      fotos: body.fotos || body.foto || body.evidencias || body.evidencia,
       usuario: req.user,
     });
 

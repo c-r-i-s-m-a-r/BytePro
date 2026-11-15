@@ -97,7 +97,7 @@ async function register({ nombre, email, password, telefono }) {
 
 async function login({ email, password }) {
   if (!email || !password) {
-    throw new AppError('Credenciales incorrectas', 401);
+    throw new AppError('Usuario o contraseña incorrecta', 401);
   }
 
   const usuario = await Usuario.findOne({
@@ -105,7 +105,7 @@ async function login({ email, password }) {
   });
 
   if (!usuario) {
-    throw new AppError('Credenciales incorrectas', 401);
+    throw new AppError('Usuario o contraseña incorrecta', 401);
   }
 
   if (!usuario.activo) {
@@ -141,7 +141,7 @@ async function login({ email, password }) {
 
   // Los administradores quedan exentos de la penalización automática.
   if (admin) {
-    throw new AppError('Credenciales incorrectas', 401);
+    throw new AppError('Usuario o contraseña incorrecta', 401);
   }
 
   const umbral =
@@ -178,7 +178,7 @@ async function login({ email, password }) {
   }
 
   await usuario.save();
-  throw new AppError('Credenciales incorrectas', 401);
+  throw new AppError('Usuario o contraseña incorrecta', 401);
 }
 
 async function findById(id) {

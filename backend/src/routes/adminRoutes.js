@@ -2,9 +2,17 @@ const { Router } = require('express');
 const adminController = require('../controllers/adminController');
 const empresaController = require('../controllers/empresaController');
 const { authenticate } = require('../middlewares/auth');
-const { requireStaff, requireActiveFunction } = require('../middlewares/rbac');
+const { requireStaff, requireActiveFunction, requireDispatchOperator } = require('../middlewares/rbac');
 
 const router = Router();
+
+// REQ-OPR-04: cambio de estado/evidencias con mensaje específico de función activa.
+router.patch('/pedidos/:ventaId/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
+router.put('/pedidos/:ventaId/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
+router.post('/pedidos/:ventaId/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
+router.patch('/despachos/:id/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
+router.put('/despachos/:id/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
+router.post('/despachos/:id/estado', authenticate, requireDispatchOperator, adminController.actualizarEstadoPedido);
 
 router.use(authenticate, requireStaff);
 
@@ -16,12 +24,6 @@ router.get('/inventario', adminController.inventario);
 router.get('/alertas-stock', adminController.alertasStock);
 router.get('/pedidos', adminController.pedidos);
 router.get('/ventas', adminController.pedidos);
-router.patch('/pedidos/:ventaId/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
-router.put('/pedidos/:ventaId/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
-router.post('/pedidos/:ventaId/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
-router.patch('/despachos/:id/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
-router.put('/despachos/:id/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
-router.post('/despachos/:id/estado', requireActiveFunction('operaciones', 'admin'), adminController.actualizarEstadoPedido);
 router.get('/usuarios', requireActiveFunction('admin'), adminController.usuarios);
 router.post('/usuarios', requireActiveFunction('admin'), adminController.crearUsuario);
 router.put('/usuarios/:id', requireActiveFunction('admin'), adminController.actualizarUsuario);

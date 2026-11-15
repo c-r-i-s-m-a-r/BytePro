@@ -134,12 +134,17 @@ async function ensureColumns(tableName, columns) {
   }
 
   const existing = new Set(Object.keys(descripcion || {}));
+  const esPostgres = sequelize.getDialect() === 'postgres';
   for (const [colName, colType] of Object.entries(columns)) {
     if (!existing.has(colName)) {
-      const tipo =
-        sequelize.getDialect() === 'postgres'
-          ? String(colType).replace(/DATETIME/gi, 'TIMESTAMP WITH TIME ZONE')
-          : colType;
+      let tipo = String(colType);
+      if (esPostgres) {
+        tipo = tipo
+          .replace(/DATETIME/gi, 'TIMESTAMP WITH TIME ZONE')
+          .replace(/\bJSON\b/gi, 'JSONB');
+      } else {
+        tipo = tipo.replace(/\bJSON\b/gi, 'TEXT');
+      }
       // eslint-disable-next-line no-await-in-loop
       await sequelize.query(`ALTER TABLE ${tableName} ADD COLUMN ${colName} ${tipo};`);
     }
@@ -158,6 +163,7 @@ sequelize.addHook('afterBulkSync', async () => {
       ubicacion_actual: ' VARCHAR(160)',
       fecha_estimada: ' DATETIME',
       historial: ' TEXT',
+      fotos: ' JSON',
     });
 
     await ensureColumns('checkouts', {

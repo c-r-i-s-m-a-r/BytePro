@@ -23,7 +23,7 @@ async function loginEmpresa(req, res, next) {
   try {
     const data = await authService.login(req.body || {});
     if (data.user.rol === 'cliente') {
-      throw new AppError('Credenciales incorrectas', 401);
+      throw new AppError('Usuario o contraseña incorrecta', 401);
     }
     res.json(data);
   } catch (err) {

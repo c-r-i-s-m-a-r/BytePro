@@ -98,9 +98,14 @@
             accept="image/png,image/jpeg,image/webp"
             multiple
             class="input"
+            :disabled="comprimiendoImagenes"
             @change="onImagenesSeleccionadas"
           />
-          <p class="field-hint">PNG, JPEG o WEBP (máx. 5 MB por archivo). Puedes seleccionar múltiples imágenes.</p>
+          <p class="field-hint">
+            PNG, JPEG o WEBP (máx. 20 MB por archivo). Se optimizan automáticamente a 1280 px y JPEG
+            de alta calidad. Puedes seleccionar múltiples imágenes.
+          </p>
+          <p v-if="comprimiendoImagenes" class="field-hint">Optimizando imágenes...</p>
         </div>
         <div class="field">
           <label>O añadir por enlace / URL de imagen</label>
@@ -358,9 +363,12 @@ import api, { apiErrorMessage } from '../../services/api';
 import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatPrice } from '../../utils/format';
+import {
+  compressImage,
+  isSupportedImageType,
+  MAX_SOURCE_IMAGE_BYTES,
+} from '../../utils/imageCompressor';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 const IMAGE_ERROR = 'El formato debe ser PNG, JPEG o WEBP y no superar los 5 MB';
 
 const ui = useUiStore();
@@ -375,6 +383,7 @@ const productoEditando = ref(null);
 const fileInput = ref(null);
 const formProductoRef = ref(null);
 const urlImagenInput = ref('');
+const comprimiendoImagenes = ref(false);
 
 function crearVariante(precio = 0) {
   return {
@@ -426,39 +435,40 @@ function onCategoriaChange() {
   inicializarEspecificaciones();
 }
 
-function leerArchivoComoDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
-    reader.readAsDataURL(file);
-  });
-}
-
 async function onImagenesSeleccionadas(event) {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
 
   productoError.value = '';
+  comprimiendoImagenes.value = true;
 
-  for (const file of files) {
-    if (!IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES) {
-      productoError.value = IMAGE_ERROR;
-      continue;
-    }
-
-    try {
-      const dataUrl = await leerArchivoComoDataUrl(file);
-      if (dataUrl && !nuevoProd.imagenes.includes(dataUrl)) {
-        nuevoProd.imagenes.push(dataUrl);
+  try {
+    for (const file of files) {
+      if (!isSupportedImageType(file)) {
+        productoError.value = IMAGE_ERROR;
+        continue;
       }
-    } catch {
-      productoError.value = 'No se pudo leer una de las imágenes seleccionadas.';
-    }
-  }
 
-  nuevoProd.imagen = nuevoProd.imagenes[0] || '';
-  if (fileInput.value) fileInput.value.value = '';
+      if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+        productoError.value = 'La imagen original no puede superar los 20 MB.';
+        continue;
+      }
+
+      try {
+        // REQ-IMG-01: reducción a 1280 px y compresión JPEG antes de guardar.
+        const dataUrl = await compressImage(file);
+        if (dataUrl && !nuevoProd.imagenes.includes(dataUrl)) {
+          nuevoProd.imagenes.push(dataUrl);
+        }
+      } catch {
+        productoError.value = 'No se pudo procesar una de las imágenes seleccionadas.';
+      }
+    }
+  } finally {
+    comprimiendoImagenes.value = false;
+    nuevoProd.imagen = nuevoProd.imagenes[0] || '';
+    if (fileInput.value) fileInput.value.value = '';
+  }
 }
 
 function onImagenSeleccionada(event) {

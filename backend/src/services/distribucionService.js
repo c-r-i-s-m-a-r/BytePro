@@ -14,6 +14,7 @@ const {
 } = require('../models');
 const AppError = require('../utils/AppError');
 const { round2 } = require('../utils/money');
+const { normalizarFotos } = require('../utils/imagePayload');
 const emailService = require('./emailService');
 
 const CIUDADES_COBERTURA = [
@@ -309,6 +310,30 @@ async function resolverDatosEntrega({ usuario, payload = {}, checkout = null, tr
   };
 }
 
+function normalizarFotosDespacho(despacho) {
+  if (!despacho) return [];
+  const raw = despacho.fotos;
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch (err) {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizarFotosEvento(evento) {
+  if (!evento || typeof evento !== 'object') return [];
+  if (Array.isArray(evento.fotos)) return evento.fotos.filter(Boolean);
+  if (Array.isArray(evento.evidencias)) return evento.evidencias.filter(Boolean);
+  if (evento.foto) return [evento.foto];
+  if (evento.evidencia) return [evento.evidencia];
+  return [];
+}
+
 function normalizarHistorial(historial, despacho) {
   let lista = [];
   if (Array.isArray(historial)) {
@@ -330,11 +355,24 @@ function normalizarHistorial(historial, despacho) {
         ubicacion: despacho.ubicacionActual || 'Centro de Recepción BytePro',
         puntoControl: despacho.ubicacionActual || 'Centro de Recepción BytePro',
         nota: despacho.nota || 'Pago validado y orden recibida.',
+        fotos: [],
+        operador: 'Sistema BytePro',
       },
     ];
   }
 
-  return lista;
+  // REQ-HIS-02: compatibilidad con registros previos sin fotos/operador.
+  return lista.map((evento) => {
+    const ev = evento && typeof evento === 'object' ? evento : {};
+    return {
+      ...ev,
+      ubicacion: ev.ubicacion || ev.puntoControl || null,
+      puntoControl: ev.puntoControl || ev.ubicacion || null,
+      nota: ev.nota || null,
+      fotos: normalizarFotosEvento(ev),
+      operador: ev.operador || ev.usuarioNombre || 'Operaciones BytePro',
+    };
+  });
 }
 
 function construirEtapas(estadoActual, historial = []) {
@@ -362,6 +400,8 @@ function construirEtapas(estadoActual, historial = []) {
       timestamp: evento ? evento.timestamp : null,
       ubicacion: evento ? evento.ubicacion || evento.puntoControl || null : null,
       nota: evento ? evento.nota || null : null,
+      fotos: evento ? evento.fotos || [] : [],
+      operador: evento ? evento.operador || null : null,
     };
   });
 }
@@ -404,6 +444,10 @@ function serializarDespacho(despacho, { publico = false } = {}) {
   const historial = normalizarHistorial(despacho.historial, despacho);
   const etapas = construirEtapas(estado, historial);
   const progreso = calcularProgreso(estado);
+  // REQ-HIS-02: evidencias generales derivadas del historial para registros previos.
+  const fotosHistorial = historial.flatMap((evento) => evento.fotos || []);
+  const fotos = normalizarFotosDespacho(despacho);
+  const evidencias = [...new Set([...fotos, ...fotosHistorial])];
   const fechaEstimada =
     despacho.fechaEstimada ||
     new Date(new Date(despacho.createdAt || Date.now()).getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -426,6 +470,8 @@ function serializarDespacho(despacho, { publico = false } = {}) {
     fechaEstimada,
     fechaEstimadaEntrega: fechaEstimada,
     nota: despacho.nota || null,
+    fotos: evidencias,
+    evidencias,
     etapas,
     historial,
     createdAt: despacho.createdAt,
@@ -492,6 +538,8 @@ async function crearDespachoPago({
     ubicacion: 'Centro de Recepción BytePro',
     puntoControl: 'Pago validado y orden recibida',
     nota: 'Pago confirmado. Orden registrada para preparación en almacén.',
+    fotos: [],
+    operador: 'Sistema BytePro',
   };
 
   if (existente) {
@@ -507,6 +555,7 @@ async function crearDespachoPago({
         ubicacionActual: 'Centro de Recepción BytePro',
         fechaEstimada,
         historial: [eventoInicial],
+        fotos: [],
         nota: 'Pago confirmado. Pendiente de preparación.',
       },
       { transaction }
@@ -527,6 +576,7 @@ async function crearDespachoPago({
       ubicacionActual: 'Centro de Recepción BytePro',
       fechaEstimada,
       historial: [eventoInicial],
+      fotos: [],
       nota: 'Pago confirmado. Pendiente de preparación.',
     },
     { transaction }
@@ -567,6 +617,7 @@ async function actualizarEstadoDespacho({
   ubicacion,
   puntoControl,
   nota,
+  fotos,
   usuario,
 }) {
   const destinoRaw = String(nuevoEstado || '').trim().toUpperCase();
@@ -605,6 +656,8 @@ async function actualizarEstadoDespacho({
   const notaFinal =
     String(nota || '').trim() ||
     (defEtapa ? defEtapa.descripcion : 'Actualización de estado logístico');
+  // REQ-IMG-02: valida formato y tamaño de las evidencias antes de persistir.
+  const fotosLimpias = normalizarFotos(fotos);
   const ahora = new Date();
 
   let venta = null;
@@ -620,6 +673,7 @@ async function actualizarEstadoDespacho({
       nota: notaFinal,
       usuarioId: usuario ? usuario.id : null,
       operador: usuario ? usuario.nombre : 'Operaciones BytePro',
+      fotos: fotosLimpias,
     };
 
     await despacho.update(
@@ -628,6 +682,7 @@ async function actualizarEstadoDespacho({
         ubicacionActual: ubicacionFinal,
         nota: notaFinal,
         historial: [...historialActual, nuevoEvento],
+        fotos: [...new Set([...normalizarFotosDespacho(despacho), ...fotosLimpias])],
       },
       { transaction }
     );

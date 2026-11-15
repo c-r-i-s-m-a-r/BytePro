@@ -29,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       ubicacionActual: { type: DataTypes.STRING(160), allowNull: true },
       fechaEstimada: { type: DataTypes.DATE, allowNull: true },
       historial: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
+      fotos: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
       nota: { type: DataTypes.STRING(255), allowNull: true },
       trackingCode: {
         type: DataTypes.VIRTUAL,

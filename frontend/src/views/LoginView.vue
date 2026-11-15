@@ -103,7 +103,7 @@ async function submit() {
         : { name: 'catalog' };
     router.push(redirect);
   } catch (err) {
-    error.value = auth.error || 'No se pudo iniciar sesión';
+    error.value = auth.error || 'Usuario o contraseña incorrecta';
     const segundos = Number(err?.response?.data?.error?.segundosRestantes);
     if (Number.isFinite(segundos) && segundos > 0) {
       iniciarCuentaRegresiva(segundos);

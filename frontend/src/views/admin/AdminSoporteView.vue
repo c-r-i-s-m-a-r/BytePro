@@ -135,12 +135,111 @@
           {{ guardandoResolucion ? 'Cerrando caso…' : 'Cerrar caso' }}
         </button>
       </div>
+
+      <!-- REQ-VIS-02: historial de despacho del pedido asociado sin cambiar de pantalla -->
+      <div v-if="ticketSeleccionado.numeroPedido" class="mt-6">
+        <div class="flex-between mb-2">
+          <h4 class="font-semibold mb-0">Historial de despacho y evidencias</h4>
+          <button
+            type="button"
+            class="btn btn-tertiary btn-sm"
+            :disabled="cargandoHistorial"
+            @click="verHistorialDespacho(ticketSeleccionado)"
+          >
+            {{
+              mostrarHistorial
+                ? 'Ocultar historial'
+                : cargandoHistorial
+                  ? 'Cargando…'
+                  : 'Ver historial y fotos'
+            }}
+          </button>
+        </div>
+
+        <p class="field-hint">
+          Pedido asociado: <strong>{{ ticketSeleccionado.numeroPedido }}</strong>
+        </p>
+
+        <div v-if="historialError" class="alert alert-danger mt-2">{{ historialError }}</div>
+
+        <div v-if="mostrarHistorial && historialDespacho" class="mt-3">
+          <div class="card-grid mb-3">
+            <div>
+              <span class="field-hint">Guía:</span>
+              <div class="font-semibold">
+                {{ historialDespacho.codigoSeguimiento || 'Sin guía' }}
+              </div>
+            </div>
+            <div>
+              <span class="field-hint">Estado actual:</span>
+              <div class="font-semibold">{{ historialDespacho.estado }}</div>
+            </div>
+            <div>
+              <span class="field-hint">Ubicación actual:</span>
+              <div>{{ historialDespacho.ubicacionActual || '—' }}</div>
+            </div>
+          </div>
+
+          <p
+            v-if="!historialDespacho.historial || !historialDespacho.historial.length"
+            class="field-hint"
+          >
+            El despacho no registra hitos todavía.
+          </p>
+
+          <ul v-else class="dispatch-timeline">
+            <li
+              v-for="(evento, idx) in historialDespacho.historial"
+              :key="`${evento.timestamp}-${idx}`"
+              class="dispatch-timeline-item"
+            >
+              <div class="flex-between">
+                <strong>{{ evento.estado }}</strong>
+                <small class="field-hint">{{ formatDateTime(evento.timestamp) }}</small>
+              </div>
+              <div class="field-hint">
+                {{ evento.ubicacion || 'Sin ubicación' }} ·
+                {{ evento.operador || 'Operaciones BytePro' }}
+              </div>
+              <div v-if="evento.nota" class="dispatch-note mt-2">
+                <span class="dispatch-note-label">Nota del operador</span>
+                <p>{{ evento.nota }}</p>
+              </div>
+
+              <div v-if="evento.fotos && evento.fotos.length" class="evidence-grid mt-2">
+                <button
+                  v-for="(foto, fotoIdx) in evento.fotos"
+                  :key="fotoIdx"
+                  type="button"
+                  class="evidence-thumb"
+                  title="Ampliar evidencia"
+                  @click="verFoto(foto)"
+                >
+                  <img :src="foto" alt="Evidencia fotográfica del despacho" />
+                </button>
+              </div>
+              <div v-else class="evidence-empty mt-2">Sin imágenes</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox de evidencias -->
+    <div
+      v-if="lightbox.src"
+      class="modal-backdrop lightbox-backdrop"
+      role="dialog"
+      aria-modal="true"
+      @click.self="cerrarLightbox"
+    >
+      <img :src="lightbox.src" class="lightbox-image" alt="Evidencia ampliada" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
 import { subscribeToTables } from '../../services/realtime';
 import { useAuthStore } from '../../store/auth';
@@ -154,6 +253,75 @@ const reclamosExito = ref('');
 const ticketSeleccionado = ref(null);
 const solucionTexto = ref('');
 const guardandoResolucion = ref(false);
+
+const historialDespacho = ref(null);
+const historialError = ref('');
+const cargandoHistorial = ref(false);
+const mostrarHistorial = ref(false);
+const lightbox = reactive({ src: '' });
+
+function verFoto(src) {
+  lightbox.src = src;
+}
+
+function cerrarLightbox() {
+  lightbox.src = '';
+}
+
+function codigoDespachoDesdePedido(numeroPedido) {
+  const valor = String(numeroPedido || '').trim();
+  if (!valor) return '';
+  if (/^TRK-/i.test(valor)) return valor;
+
+  const digitos = valor.match(/\d+/g);
+  if (digitos && digitos.length) {
+    return String(Number(digitos[digitos.length - 1]));
+  }
+  return valor;
+}
+
+async function cargarHistorialDespacho(numeroPedido) {
+  const codigo = codigoDespachoDesdePedido(numeroPedido);
+  if (!codigo) {
+    historialError.value = 'El ticket no tiene un pedido o guía asociada.';
+    return;
+  }
+
+  const esPedido = /^PED-/i.test(String(numeroPedido || '').trim());
+  const ventaIdEsperada = esPedido ? Number(codigo) : null;
+
+  historialError.value = '';
+  cargandoHistorial.value = true;
+  try {
+    const { data } = await api.get(
+      `/distribucion/despachos/${encodeURIComponent(codigo)}`
+    );
+
+    if (ventaIdEsperada && Number(data.ventaId) !== ventaIdEsperada) {
+      historialDespacho.value = null;
+      historialError.value = 'El pedido no tiene un despacho asociado.';
+      return;
+    }
+
+    historialDespacho.value = data;
+  } catch (err) {
+    historialDespacho.value = null;
+    historialError.value = apiErrorMessage(err);
+  } finally {
+    cargandoHistorial.value = false;
+  }
+}
+
+async function verHistorialDespacho(ticket) {
+  if (mostrarHistorial.value) {
+    mostrarHistorial.value = false;
+    return;
+  }
+
+  mostrarHistorial.value = true;
+  historialDespacho.value = null;
+  await cargarHistorialDespacho(ticket.numeroPedido);
+}
 
 function ticketBadgeClass(estado) {
   if (estado === 'RESUELTO') return 'badge-stock';
@@ -175,10 +343,16 @@ function verDetalleTicket(ticket) {
   if (ticketSeleccionado.value?.id === ticket.id) {
     ticketSeleccionado.value = null;
     solucionTexto.value = '';
+    mostrarHistorial.value = false;
+    historialDespacho.value = null;
+    historialError.value = '';
     return;
   }
   ticketSeleccionado.value = ticket;
   solucionTexto.value = ticket.solucion || '';
+  mostrarHistorial.value = false;
+  historialDespacho.value = null;
+  historialError.value = '';
 }
 
 async function tomarTicket(ticket) {
@@ -218,9 +392,19 @@ async function cerrarTicket(ticket) {
 
 let unsubscribeRealtime = null;
 
+async function onRealtimeUpdate() {
+  await cargarReclamos();
+  if (mostrarHistorial.value && ticketSeleccionado.value?.numeroPedido) {
+    await cargarHistorialDespacho(ticketSeleccionado.value.numeroPedido);
+  }
+}
+
 onMounted(() => {
   cargarReclamos();
-  unsubscribeRealtime = subscribeToTables(['reclamos'], cargarReclamos);
+  unsubscribeRealtime = subscribeToTables(
+    ['reclamos', 'despachos', 'ventas'],
+    onRealtimeUpdate
+  );
 });
 
 onUnmounted(() => {

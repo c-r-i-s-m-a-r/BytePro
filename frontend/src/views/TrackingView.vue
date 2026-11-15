@@ -131,7 +131,26 @@
                   <span class="field-hint">{{ formatDateTime(evento.timestamp) }}</span>
                 </div>
                 <p class="field-hint">{{ evento.ubicacion || evento.puntoControl }}</p>
-                <p v-if="evento.nota">{{ evento.nota }}</p>
+                <div v-if="evento.nota" class="dispatch-note mt-2">
+                  <span class="dispatch-note-label">Nota del operador</span>
+                  <p>{{ evento.nota }}</p>
+                </div>
+                <p v-if="evento.operador" class="field-hint">Registrado por: {{ evento.operador }}</p>
+
+                <!-- REQ-VIS-04: galería de evidencias o estado vacío explícito -->
+                <div v-if="evento.fotos && evento.fotos.length" class="evidence-grid mt-2">
+                  <button
+                    v-for="(foto, fotoIdx) in evento.fotos"
+                    :key="fotoIdx"
+                    type="button"
+                    class="evidence-thumb"
+                    title="Ampliar evidencia"
+                    @click="verFoto(foto)"
+                  >
+                    <img :src="foto" alt="Evidencia fotográfica del envío" />
+                  </button>
+                </div>
+                <div v-else class="evidence-empty mt-2">Sin imágenes</div>
               </div>
             </div>
           </div>
@@ -232,11 +251,22 @@
         </aside>
       </div>
     </template>
+
+    <!-- REQ-VIS-01: visor ampliado de evidencias -->
+    <div
+      v-if="lightbox.src"
+      class="modal-backdrop lightbox-backdrop"
+      role="dialog"
+      aria-modal="true"
+      @click.self="cerrarLightbox"
+    >
+      <img :src="lightbox.src" class="lightbox-image" alt="Evidencia ampliada" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import api, { apiErrorMessage } from '../services/api';
 import { subscribeToTables } from '../services/realtime';
@@ -251,6 +281,15 @@ const codigoInput = ref('');
 const loading = ref(false);
 const error = ref('');
 const tracking = ref(null);
+const lightbox = reactive({ src: '' });
+
+function verFoto(src) {
+  lightbox.src = src;
+}
+
+function cerrarLightbox() {
+  lightbox.src = '';
+}
 
 function estadoClass(estado) {
   if (estado === 'ENTREGADO') return 'badge-stock';

@@ -72,6 +72,25 @@ function requireProductManager(req, res, next) {
   return next();
 }
 
+function requireDispatchOperator(req, res, next) {
+  if (!req.user) {
+    return next(new AppError('Token de autenticación requerido', 401));
+  }
+
+  if (req.user.rol === 'admin') {
+    return next();
+  }
+
+  const funcionActiva = getActiveFunction(req.user);
+  if (!['operaciones', 'admin'].includes(funcionActiva)) {
+    return next(
+      new AppError('Esta operación requiere la función activa de Operaciones o Admin', 403)
+    );
+  }
+
+  return next();
+}
+
 const requireStaff = requireRole(...STAFF_ROLES);
 const requireAlmacen = requireRole(...ALMACEN_ROLES);
 
@@ -81,6 +100,7 @@ module.exports = {
   requireAlmacen,
   requireActiveFunction,
   requireProductManager,
+  requireDispatchOperator,
   getActiveFunction,
   STAFF_ROLES,
   ALMACEN_ROLES,

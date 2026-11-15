@@ -94,7 +94,7 @@ async function submit() {
     ui.success('Acceso de empresa concedido');
     router.push({ name: 'admin' });
   } catch (err) {
-    error.value = auth.error || 'Credenciales incorrectas';
+    error.value = auth.error || 'Usuario o contraseña incorrecta';
     const segundos = Number(err?.response?.data?.error?.segundosRestantes);
     if (Number.isFinite(segundos) && segundos > 0) {
       iniciarCuentaRegresiva(segundos);
