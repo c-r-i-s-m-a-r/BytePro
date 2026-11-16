@@ -34,6 +34,54 @@
         </select>
       </div>
 
+      <!-- REQ-MOB-01: Acciones móviles: carrito directo + menú hamburguesa -->
+      <div class="mobile-header-actions">
+        <button
+          class="header-link header-cart-btn mobile-cart-btn"
+          type="button"
+          aria-label="Abrir carrito"
+          @click="abrirCarrito"
+        >
+          <AppIcon name="shopping-cart" :size="20" />
+          <span v-if="cart.count" class="badge-count">{{ cart.count }}</span>
+        </button>
+        <button
+          class="mobile-menu-toggle"
+          type="button"
+          :aria-label="menuAbierto ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'"
+          :aria-expanded="menuAbierto ? 'true' : 'false'"
+          aria-controls="mobile-nav-menu"
+          @click="toggleMenu"
+        >
+          <svg
+            v-if="!menuAbierto"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+          <svg
+            v-else
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+
       <nav class="header-actions" aria-label="Acciones de cuenta">
         <!-- REQ-EMP-08: Enlaces públicos de retail solo para clientes/invitados -->
         <template v-if="!auth.isStaff">
@@ -98,6 +146,144 @@
       </nav>
     </div>
 
+    <!-- REQ-MOB-02 / REQ-MOB-03: Cortina desplegable móvil y backdrop de cierre -->
+    <Teleport to="body">
+      <div
+        v-if="menuAbierto"
+        class="mobile-nav-backdrop"
+        aria-hidden="true"
+        @click="cerrarMenu"
+      ></div>
+    </Teleport>
+
+    <nav
+      v-if="menuAbierto"
+      id="mobile-nav-menu"
+      class="mobile-nav-menu mobile-nav-panel"
+      aria-label="Menú de navegación móvil"
+    >
+      <div class="mobile-nav-header">
+        <span class="mobile-nav-title">Menú</span>
+        <button
+          type="button"
+          class="mobile-nav-close"
+          aria-label="Cerrar menú"
+          @click="cerrarMenu"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+
+      <template v-if="!auth.isStaff">
+        <RouterLink class="mobile-nav-link" :to="{ name: 'catalog' }" @click="cerrarMenu">
+          <AppIcon name="cube" :size="20" />
+          <span>Catálogo</span>
+        </RouterLink>
+        <RouterLink
+          class="mobile-nav-link"
+          to="/ayuda"
+          :class="{ active: ['help', 'support', 'claims'].includes(route.name) }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="help" :size="20" />
+          <span>Ayuda y Reclamos</span>
+        </RouterLink>
+        <RouterLink
+          class="mobile-nav-link"
+          to="/seguimiento"
+          :class="{ active: ['tracking', 'tracking-alias'].includes(route.name) }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="truck-side" :size="20" />
+          <span>Seguimiento de envío</span>
+        </RouterLink>
+        <RouterLink
+          class="mobile-nav-link"
+          to="/comparar"
+          :class="{ active: route.name === 'compare' }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="transfer" :size="20" />
+          <span>Comparar</span>
+          <span v-if="compare.count" class="badge-count">{{ compare.count }}</span>
+        </RouterLink>
+        <RouterLink
+          v-if="auth.isAuthenticated"
+          class="mobile-nav-link"
+          to="/mis-pedidos"
+          :class="{ active: ['orders', 'account-orders', 'addresses'].includes(route.name) }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="cube" :size="20" />
+          <span>Mis pedidos</span>
+        </RouterLink>
+      </template>
+
+      <template v-else>
+        <RouterLink
+          class="mobile-nav-link"
+          to="/admin"
+          :class="{ active: route.path.startsWith('/admin') }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="cube" :size="20" />
+          <span>Panel ({{ auth.funcionActiva }})</span>
+        </RouterLink>
+      </template>
+
+      <div v-if="auth.isStaff && auth.tieneMultiplesFunciones" class="mobile-nav-field">
+        <label for="mobile-role-switch" class="field-hint">Función activa</label>
+        <select
+          id="mobile-role-switch"
+          class="select select-block"
+          :value="auth.funcionActiva"
+          @change="onCambiarFuncionMobile($event.target.value)"
+        >
+          <option v-for="r in auth.rolesDisponibles" :key="r" :value="r">
+            {{ formatRoleName(r) }}
+          </option>
+        </select>
+      </div>
+
+      <div class="mobile-nav-footer">
+        <div v-if="auth.isAuthenticated" class="mobile-nav-user">
+          <span class="mobile-nav-user-name">{{ auth.user.nombre }}</span>
+          <span class="field-hint">
+            {{ auth.isStaff ? formatRoleName(auth.funcionActiva) : 'Cliente BytePro' }}
+          </span>
+        </div>
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          class="btn btn-danger btn-block mobile-nav-logout"
+          @click="logout"
+        >
+          <AppIcon name="sign-out" :size="16" />
+          Salir
+        </button>
+        <RouterLink
+          v-else
+          class="btn btn-primary btn-block"
+          :to="{ name: 'login' }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="sign-in" :size="16" />
+          Ingresar
+        </RouterLink>
+      </div>
+    </nav>
+
     <!-- REQ-EMP-08: Ocultar barra de categorías de retail si es staff -->
     <div v-if="!auth.isStaff" class="category-bar">
       <div class="container category-bar-inner">
@@ -131,7 +317,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import byteproLogo from '../assets/icons/icon-bytepro.png';
 import AppIcon from './AppIcon.vue';
@@ -151,6 +337,7 @@ const router = useRouter();
 const route = useRoute();
 
 const drawerAbierto = computed(() => ui.cartDrawerOpen);
+const menuAbierto = ref(false);
 
 const brandTarget = computed(() => {
   if (auth.isStaff) return '/admin';
@@ -158,7 +345,22 @@ const brandTarget = computed(() => {
   return '/';
 });
 
+function toggleMenu() {
+  menuAbierto.value = !menuAbierto.value;
+}
+
+function cerrarMenu() {
+  menuAbierto.value = false;
+}
+
+function onKeydown(event) {
+  if (event.key === 'Escape' && menuAbierto.value) {
+    cerrarMenu();
+  }
+}
+
 function abrirCarrito() {
+  cerrarMenu();
   ui.openCartDrawer();
 }
 
@@ -170,6 +372,7 @@ watch(
   () => route.fullPath,
   () => {
     ui.closeCartDrawer();
+    cerrarMenu();
   }
 );
 
@@ -200,6 +403,11 @@ async function onCambiarFuncion(nueva) {
   } catch (err) {
     ui.error('No se pudo cambiar la función');
   }
+}
+
+async function onCambiarFuncionMobile(nueva) {
+  await onCambiarFuncion(nueva);
+  cerrarMenu();
 }
 
 const term = ref(catalog.filters.q || '');
@@ -239,6 +447,7 @@ function selectCategory(slug) {
 }
 
 function logout() {
+  cerrarMenu();
   ui.closeCartDrawer();
   auth.logout();
   cart.reset();
@@ -246,8 +455,13 @@ function logout() {
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', onKeydown);
   if (!catalog.categorias.length) await catalog.fetchCategorias();
   if (auth.isAuthenticated) await auth.fetchMe();
   cart.fetch();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
 });
 </script>

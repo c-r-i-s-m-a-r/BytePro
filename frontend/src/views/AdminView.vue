@@ -32,6 +32,21 @@
       </div>
     </div>
 
+    <!-- REQ-MOB-04: Selector desplegable de módulos para móvil -->
+    <div class="admin-mobile-nav">
+      <label for="admin-mobile-module" class="admin-mobile-nav-label">Módulo</label>
+      <select
+        id="admin-mobile-module"
+        class="select select-block"
+        :value="moduloActual"
+        @change="irAModulo($event.target.value)"
+      >
+        <option v-for="modulo in modulosDisponibles" :key="modulo.name" :value="modulo.name">
+          {{ modulo.label }}
+        </option>
+      </select>
+    </div>
+
     <div class="admin-layout">
       <!-- Barra lateral de navegación dinámica reactiva por rol/función (REQ-ADM-07 y REQ-ADM-08) -->
       <aside class="admin-sidebar" aria-label="Menú corporativo">
@@ -143,6 +158,43 @@ const esAdmin = computed(() => auth.isAdmin || auth.user?.rol === 'admin');
 const puedeVendedor = computed(() => funcionActiva.value === 'vendedor' || esAdmin.value);
 const puedeSoporte = computed(() => funcionActiva.value === 'soporte' || esAdmin.value);
 const puedeOperaciones = computed(() => funcionActiva.value === 'operaciones' || funcionActiva.value === 'empleado' || esAdmin.value);
+
+// REQ-MOB-04: módulos autorizados para la función activa en el selector móvil.
+const modulosDisponibles = computed(() => {
+  const modulos = [
+    { name: 'admin-resumen', label: 'Dashboard y KPIs' },
+    { name: 'admin-comunicados', label: 'Comunicados Internos' },
+  ];
+
+  if (esAdmin.value || puedeVendedor.value) {
+    modulos.push({ name: 'admin-productos', label: 'Catálogo de Productos' });
+  }
+  if (esAdmin.value || puedeOperaciones.value) {
+    modulos.push({ name: 'admin-pedidos', label: 'Pedidos y Despachos' });
+    modulos.push({ name: 'admin-inventario', label: 'Inventario y Kardex' });
+  }
+  if (esAdmin.value || puedeSoporte.value) {
+    modulos.push({ name: 'admin-soporte', label: 'Mesa de Soporte' });
+  }
+  if (esAdmin.value) {
+    modulos.push({ name: 'admin-personal', label: 'Gestión de Personal' });
+    modulos.push({ name: 'admin-auditoria', label: 'Cobros y Auditoría' });
+    modulos.push({ name: 'admin-ajustes', label: 'Ajustes de Empresa' });
+  }
+
+  return modulos;
+});
+
+const moduloActual = computed(() => {
+  const nombre = route.name === 'admin' ? 'admin-resumen' : route.name;
+  const existe = modulosDisponibles.value.some((modulo) => modulo.name === nombre);
+  return existe ? nombre : modulosDisponibles.value[0]?.name || 'admin-resumen';
+});
+
+function irAModulo(nombre) {
+  if (!nombre || nombre === route.name) return;
+  router.push({ name: nombre });
+}
 
 function formatRoleName(role) {
   const map = {
