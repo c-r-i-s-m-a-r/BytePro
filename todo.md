@@ -29,6 +29,7 @@
 - [x] Corrección de Desbordamiento y Eliminación de Scroll Horizontal en Vista Móvil (EARS) - `.specs/requirements/SPEC-024-correccion-scroll-horizontal-vista-movil.md`
 - [x] Adaptación Móvil del Catálogo: Productos a Una Columna y Reducción del Panel de Filtros (EARS) - `.specs/requirements/SPEC-025-catalogo-movil-cards-una-columna-panel-filtros.md`
 - [x] Estado "En Espera de Comprobación" para Pagos QR / Bancarios y Visualización Real del Nombre del Cliente en Pedidos y Despachos (EARS) - `.specs/requirements/SPEC-026-estado-espera-comprobacion-qr-nombre-cliente.md`
+- [x] Corrección de Exposición de Carrito en Vista Móvil para Usuarios Empresariales / Staff (EARS) - `.specs/requirements/SPEC-027-fix-carrito-movil-usuarios-empresariales.md`
 
 ## 2. Implementación (backend / frontend) - [A cargo de `implementador`]
 - [x] Base de datos, modelos y migraciones iniciales (SQLite + Sequelize)
@@ -84,6 +85,7 @@
 - [x] Fix: Corrección de desbordamiento horizontal y contención completa en vista móvil, eliminando cualquier scroll horizontal (SPEC-024, REQ-MOB-FIX-01 a REQ-MOB-FIX-05) [A cargo de `implementador`]
 - [x] Fix: Adaptación del catálogo a móvil con cards a una columna, reducción y acordeón en panel de filtros y reseteo de anchos en toolbar (SPEC-025, REQ-CAT-MOB-01 a REQ-CAT-MOB-05) [A cargo de `implementador`]
 - [x] Estado 'EN_ESPERA_COMPROBACION' para pagos QR, verificación manual por ventas/admin y visualización del nombre real del cliente en pedidos y despachos (SPEC-026, REQ-PAG-QR-01 a REQ-PAG-QR-06) [A cargo de `implementador`]
+- [x] Ocultamiento de carrito móvil (.mobile-cart-btn y CartDrawer) y guarda en abrirCarrito() para usuarios staff/empresariales (SPEC-027, REQ-MOB-STAFF-01 a REQ-MOB-STAFF-04 en AppHeader.vue) [A cargo de `implementador`]
 
 ## 3. Pruebas y Revisión - [A cargo exclusivo de `revisor`]
 - [x] Verificación de cumplimiento de specs EARS (SPEC-001 al SPEC-016 y requerimientos de navegación)
@@ -116,5 +118,6 @@
 - [x] Pruebas y validación EARS de Sistema Integral de Notificaciones por Correo Electrónico (SPEC-019, REQ-EML-01 a REQ-EML-07: recuperación de contraseña con código temporal de 6 dígitos y hash SHA-256 exclusivo para clientes, vista /recuperar-contrasena y enlace en LoginView, comprobante HTML con ítems/subtotales/guía TRK en enviarRecibo, filtro selectivo EN_CAMINO/ENTREGADO en enviarActualizacionEnvio, envío de resolución de reclamo y transporte dual nodemailer/simulación resiliente) en `.tmp/tests/spec019_emails_notificaciones.test.js` (6/6 OK)
 - [x] Pruebas y validación EARS de Adaptabilidad Móvil y Menús Desplegables (SPEC-020, REQ-MOB-01 a REQ-MOB-05: @media max-width 767px ocultando .header-actions y .admin-sidebar, botón hamburguesa .mobile-menu-toggle con aria-expanded, panel .mobile-nav-panel, cierre al navegar/backdrop/Escape, selector .admin-mobile-nav en AdminView y área táctil min-height 44px) en `.tmp/tests/spec020_navegacion_movil_desplegables.test.js` (5/5 OK)
 - [x] Pruebas y validación EARS de Estado En Espera de Comprobación QR, Verificación Manual RBAC, Emisión de Recibo y Nombre Real de Cliente (SPEC-026, REQ-PAG-QR-01 a REQ-PAG-QR-06) en `.tmp/tests/spec026_estado_espera_qr_nombre_cliente.test.js` (5/5 OK)
+- [x] Pruebas y validación EARS de Ocultamiento de Carrito en Vista Móvil para Usuarios Empresariales / Staff (SPEC-027, REQ-MOB-STAFF-01 a REQ-MOB-STAFF-04 en AppHeader.vue) en `.tmp/tests/spec027_carrito_movil_staff_fix.test.js` (4/4 OK)
 - [x] Auditoría de seguridad y restricciones (dependencias locales, MVC, sin impacto al SO)
-- [x] Validación de interfaz y compilación en frontend Vue 3 (build exitoso en 2.25s, 22/22 suites pasando al 100%, 157/157 tests OK)
+- [x] Validación de interfaz y compilación en frontend Vue 3 (build exitoso en 2.21s, 23/23 suites pasando al 100%, 161/161 tests OK)

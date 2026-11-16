@@ -37,6 +37,7 @@
       <!-- REQ-MOB-01: Acciones móviles: carrito directo + menú hamburguesa -->
       <div class="mobile-header-actions">
         <button
+          v-if="!auth.isStaff"
           class="header-link header-cart-btn mobile-cart-btn"
           type="button"
           aria-label="Abrir carrito"
@@ -312,7 +313,7 @@
       </div>
     </div>
 
-    <CartDrawer :open="drawerAbierto" @close="cerrarCarrito" />
+    <CartDrawer v-if="!auth.isStaff" :open="drawerAbierto" @close="cerrarCarrito" />
   </header>
 </template>
 
@@ -360,6 +361,8 @@ function onKeydown(event) {
 }
 
 function abrirCarrito() {
+  // REQ-MOB-STAFF-02: el personal corporativo no accede a flujos de compra.
+  if (auth.isStaff) return;
   cerrarMenu();
   ui.openCartDrawer();
 }

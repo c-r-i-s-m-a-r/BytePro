@@ -350,3 +350,16 @@ Implementación completa en producción para **SPEC-001** a **SPEC-018**.
   - `OrdersView.vue` y `TrackingView.vue` muestran la insignia "En espera de comprobación" y un aviso informativo "En espera de comprobación de pago QR".
   - `CheckoutView.vue` y `store/checkout.js` reconocen `requiereVerificacion`: muestran "Pedido registrado / Pago en verificación", omiten el enlace al recibo inexistente y explican la revisión manual.
 - **Verificación**: `node --check` en los 8 archivos backend modificados sin errores; `npm --prefix frontend run build` limpio (219 módulos, ~2.4 s); `git diff --check` sin observaciones. No se escribieron ni ejecutaron pruebas en `.tmp/`.
+
+### SPEC-027: Ocultamiento del Carrito Móvil para Usuarios Empresariales / Staff
+- **REQ-MOB-STAFF-01 — Botón de carrito móvil oculto**:
+  - En `frontend/src/components/AppHeader.vue`, el botón `.mobile-cart-btn` dentro de `.mobile-header-actions` ahora declara `v-if="!auth.isStaff"`.
+  - Para administradores y empleados, la cabecera móvil conserva únicamente `.mobile-menu-toggle`; `.mobile-header-actions` mantiene `margin-left: auto`, por lo que la alineación derecha no se altera.
+- **REQ-MOB-STAFF-02 — Drawer bloqueado y guarda defensiva**:
+  - El componente `<CartDrawer>` se monta con `v-if="!auth.isStaff"`, de modo que no existe en el DOM para personal corporativo.
+  - `abrirCarrito()` incorpora la guarda temprana `if (auth.isStaff) return;` antes de `cerrarMenu()` y `ui.openCartDrawer()`.
+- **REQ-MOB-STAFF-03 — Clientes e invitados sin cambios**:
+  - Con `auth.isStaff === false` (cliente autenticado o invitado), el botón móvil y el `CartDrawer` se mantienen visibles y funcionales, incluido el contador reactivo `cart.count`.
+- **REQ-MOB-STAFF-04 — Estabilidad visual**:
+  - La regla existente `.mobile-header-actions { margin-left: auto; }` garantiza que, al quedar solo el botón hamburguesa, este permanezca alineado al extremo derecho sin desbordamientos.
+- **Verificación**: `npm --prefix frontend run build` limpio (219 módulos transformados, ~2.3 s) y `git diff --check` sin observaciones. No se escribieron ni ejecutaron pruebas en `.tmp/`.
