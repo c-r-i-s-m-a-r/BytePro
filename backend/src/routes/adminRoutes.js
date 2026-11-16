@@ -24,6 +24,12 @@ router.get('/inventario', adminController.inventario);
 router.get('/alertas-stock', adminController.alertasStock);
 router.get('/pedidos', adminController.pedidos);
 router.get('/ventas', adminController.pedidos);
+// REQ-PAG-QR-03: solo ventas (vendedor en la app) o admin verifican comprobantes.
+router.patch(
+  '/pedidos/:ventaId/verificar-comprobante',
+  requireActiveFunction('ventas', 'vendedor', 'admin'),
+  adminController.verificarComprobantePedido
+);
 router.get('/usuarios', requireActiveFunction('admin'), adminController.usuarios);
 router.post('/usuarios', requireActiveFunction('admin'), adminController.crearUsuario);
 router.put('/usuarios/:id', requireActiveFunction('admin'), adminController.actualizarUsuario);

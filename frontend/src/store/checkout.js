@@ -89,7 +89,8 @@ export const useCheckoutStore = defineStore('checkout', {
       Boolean(
         state.result &&
           state.result.transaccion &&
-          state.result.transaccion.estado === 'aprobado'
+          (state.result.transaccion.estado === 'aprobado' ||
+            state.result.requiereVerificacion)
       ),
   },
   actions: {
@@ -159,7 +160,13 @@ export const useCheckoutStore = defineStore('checkout', {
         this.idempotencyKey = null;
         this.idempotencyVentaId = null;
         await useCartStore().fetch();
-        useUiStore().success('Pago aprobado. Recibo digital y guía de envío generados.');
+        if (data && data.requiereVerificacion) {
+          useUiStore().success(
+            'Pedido registrado. El comprobante de transferencia / QR será verificado por el equipo de ventas.'
+          );
+        } else {
+          useUiStore().success('Pago aprobado. Recibo digital y guía de envío generados.');
+        }
         return data;
       } catch (err) {
         this.error = apiErrorMessage(err);

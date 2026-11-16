@@ -21,6 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 'pendiente',
       },
       motivoRechazo: { type: DataTypes.STRING(255), allowNull: true },
+      referenciaComprobante: { type: DataTypes.STRING(120), allowNull: true },
       referenciaExterna: { type: DataTypes.STRING(120), allowNull: true },
       tokenPago: { type: DataTypes.STRING(160), allowNull: true },
       ultimos4: { type: DataTypes.STRING(4), allowNull: true },

@@ -322,3 +322,31 @@ Implementación completa en producción para **SPEC-001** a **SPEC-018**.
 - **REQ-CAT-MOB-05 — Sin scroll horizontal**:
   - Con la cuadrícula a 1 columna, los selects sin ancho mínimo y el panel compacto, ningún bloque excede el `100%` del contenedor en 320–767 px.
 - **Verificación**: `npm --prefix frontend run build` sin errores (CSS global y `CatalogView` con las nuevas reglas) y `git diff --check` sin observaciones.
+
+### SPEC-026: Estado "En Espera de Comprobación" para Pagos QR / Transferencia y Nombre Real del Cliente
+- **REQ-PAG-QR-01 — Estado inicial para transferencia / QR**:
+  - `Despacho.estado` incorpora `EN_ESPERA_COMPROBACION` al ENUM y `Transaccion` agrega `referenciaComprobante` (con migración `ensureColumns('transacciones', { referencia_comprobante: ' VARCHAR(120)' })` para SQLite/Postgres).
+  - En PostgreSQL, el hook `afterBulkSync` ejecuta `ALTER TYPE "enum_despachos_estado" ADD VALUE IF NOT EXISTS 'EN_ESPERA_COMPROBACION'` para actualizar el tipo existente sin `sync({ alter })`.
+  - `cobroService.procesarPago` detecta `metodo === 'transferencia'`: crea la transacción en `pendiente`, guarda `referenciaComprobante`, deja la venta en `pendiente` y llama `crearDespachoPago({ metodo })`.
+  - `distribucionService.crearDespachoPago` asigna `EN_ESPERA_COMPROBACION` para transferencia (ubicación "Área de Ventas BytePro" y nota de verificación pendiente); tarjeta y pasarela conservan `PEDIDO_CONFIRMADO`.
+  - No se genera recibo ni se envía correo hasta la verificación manual; la respuesta incluye `requiereVerificacion: true`.
+  - `etiquetaPildoraPedido` devuelve "En espera de comprobación" y `calcularProgreso` asigna 10 %.
+- **REQ-PAG-QR-02 — Tarjeta y pasarela sin cambios**:
+  - El flujo aprobado de tarjeta/pasarela mantiene transacción `aprobado`, venta `pagada`, recibo y despacho `PEDIDO_CONFIRMADO`.
+- **REQ-PAG-QR-03 — Verificación manual exclusiva**:
+  - Nueva `cobroService.verificarComprobanteManual({ ventaId, usuario, nota })`: autoriza solo `admin` o función/rol `ventas`/`vendedor`; cualquier otro rol corporativo recibe `AppError 403`.
+  - Endpoint `PATCH /api/admin/pedidos/:ventaId/verificar-comprobante` con `authenticate`, `requireStaff` y `requireActiveFunction('ventas', 'vendedor', 'admin')`.
+  - La transición solo se permite desde `EN_ESPERA_COMPROBACION` (409 en otro estado) y pasa transacción a `aprobado`, venta a `pagada` y despacho a `PEDIDO_CONFIRMADO`.
+- **REQ-PAG-QR-04 — Trazabilidad, auditoría y realtime**:
+  - Se agrega el hito al historial con estado `PEDIDO_CONFIRMADO`, ubicación "Área de Ventas BytePro", nota del operador y nombre completo del empleado.
+  - Se genera el recibo oficial si aún no existe (ítems desde `CheckoutItem`) y se registra auditoría `comprobante_qr_verificado` con referencia/código de transacción.
+  - Se emiten eventos `realtimeHub.emitTableChange` para `despachos`, `ventas` y `recibos`.
+- **REQ-PAG-QR-05 — Nombre real del cliente**:
+  - `adminController.pedidos` devuelve `cliente` y `usuario` con `{ id, nombre, email }` reales, además de `referenciaComprobante`, `codigoTransaccion` y `transaccion`.
+  - Incluye ventas `pendiente` cuyo despacho está en `EN_ESPERA_COMPROBACION`, fusionadas y ordenadas por fecha; `clienteService.listarPedidos` hace lo propio para el historial del cliente.
+  - `AdminPedidosView.vue` usa `nombreCliente(p)` con la cadena `p.cliente?.nombre || p.usuario?.nombre || p.despacho?.destinatario || 'Cliente'`, muestra el correo y el comprobante.
+- **REQ-PAG-QR-06 — Feedback al cliente y portal**:
+  - `AdminPedidosView.vue` muestra badge de aviso "En espera de comprobación", el número de comprobante y el botón **Verificar comprobante** (visible solo para ventas/admin), que llama al endpoint y refresca la lista con mensaje de éxito.
+  - `OrdersView.vue` y `TrackingView.vue` muestran la insignia "En espera de comprobación" y un aviso informativo "En espera de comprobación de pago QR".
+  - `CheckoutView.vue` y `store/checkout.js` reconocen `requiereVerificacion`: muestran "Pedido registrado / Pago en verificación", omiten el enlace al recibo inexistente y explican la revisión manual.
+- **Verificación**: `node --check` en los 8 archivos backend modificados sin errores; `npm --prefix frontend run build` limpio (219 módulos, ~2.4 s); `git diff --check` sin observaciones. No se escribieron ni ejecutaron pruebas en `.tmp/`.

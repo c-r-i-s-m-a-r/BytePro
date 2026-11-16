@@ -8,6 +8,7 @@ const {
   Variante,
   Despacho,
   Recibo,
+  Transaccion,
   Categoria,
 } = require('../models');
 const cobroService = require('../services/cobroService');
@@ -346,36 +347,87 @@ async function pedidos(req, res, next) {
       100
     );
 
-    const whereVenta = {
-      estado: { [Op.ne]: 'pendiente' },
-    };
-
-    const rows = await Venta.findAll({
-      where: whereVenta,
-      include: [
-        { model: Usuario, as: 'usuario', attributes: ['id', 'nombre', 'email'] },
-        { model: Despacho, as: 'despacho' },
-        { model: Recibo, as: 'recibo', attributes: ['id', 'numero', 'metodo'] },
-        {
-          model: VentaItem,
-          as: 'items',
-          include: [
-            {
-              model: Variante,
-              as: 'variante',
-              attributes: ['id', 'sku', 'nombre'],
-              include: [{ model: Producto, as: 'producto', attributes: ['id', 'nombre'] }],
-            },
-          ],
-        },
+    const includeUsuario = () => ({
+      model: Usuario,
+      as: 'usuario',
+      attributes: ['id', 'nombre', 'email'],
+    });
+    const includeRecibo = () => ({
+      model: Recibo,
+      as: 'recibo',
+      attributes: ['id', 'numero', 'metodo'],
+    });
+    const includeTransacciones = () => ({
+      model: Transaccion,
+      as: 'transacciones',
+      attributes: [
+        'id',
+        'metodo',
+        'estado',
+        'codigoTransaccion',
+        'referenciaComprobante',
+        'referenciaExterna',
+        'fechaProcesado',
       ],
-      order: [
-        ['createdAt', 'DESC'],
-        ['id', 'DESC'],
+    });
+    const includeItems = () => ({
+      model: VentaItem,
+      as: 'items',
+      include: [
+        {
+          model: Variante,
+          as: 'variante',
+          attributes: ['id', 'sku', 'nombre'],
+          include: [{ model: Producto, as: 'producto', attributes: ['id', 'nombre'] }],
+        },
       ],
     });
 
-    let lista = rows.map((venta) => {
+    const ordenVentas = [
+      ['createdAt', 'DESC'],
+      ['id', 'DESC'],
+    ];
+
+    // REQ-PAG-QR-01: las ventas por transferencia permanecen "pendiente" hasta
+    // que ventas/admin verifican el comprobante. Deben seguir visibles en el portal.
+    const [rows, pendientesComprobante] = await Promise.all([
+      Venta.findAll({
+        where: { estado: { [Op.ne]: 'pendiente' } },
+        include: [
+          includeUsuario(),
+          { model: Despacho, as: 'despacho' },
+          includeRecibo(),
+          includeTransacciones(),
+          includeItems(),
+        ],
+        order: ordenVentas,
+      }),
+      Venta.findAll({
+        where: { estado: 'pendiente' },
+        include: [
+          includeUsuario(),
+          {
+            model: Despacho,
+            as: 'despacho',
+            where: { estado: 'EN_ESPERA_COMPROBACION' },
+            required: true,
+          },
+          includeRecibo(),
+          includeTransacciones(),
+          includeItems(),
+        ],
+        order: ordenVentas,
+      }),
+    ]);
+
+    const rowsOrdenadas = [...rows, ...pendientesComprobante].sort((a, b) => {
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      if (tb !== ta) return tb - ta;
+      return Number(b.id) - Number(a.id);
+    });
+
+    let lista = rowsOrdenadas.map((venta) => {
       const despacho = venta.despacho
         ? distribucionService.serializarDespacho(venta.despacho)
         : null;
@@ -389,23 +441,38 @@ async function pedidos(req, res, next) {
               ? 'EN_CAMINO'
               : 'PEDIDO_CONFIRMADO';
 
+      const cancelada = venta.estado === 'cancelada' || venta.estado === 'CANCELADO';
       const estadoPago =
-        venta.estado === 'cancelada' || venta.estado === 'CANCELADO'
-          ? 'CANCELADO'
-          : 'PAGADO';
+        estadoLogistica === 'EN_ESPERA_COMPROBACION'
+          ? 'EN_ESPERA_COMPROBACION'
+          : cancelada
+            ? 'CANCELADO'
+            : 'PAGADO';
+
+      const transacciones = Array.isArray(venta.transacciones) ? venta.transacciones : [];
+      const transaccion =
+        transacciones
+          .slice()
+          .sort((a, b) => Number(b.id) - Number(a.id))[0] || null;
+
+      const nombreCliente =
+        (venta.usuario && venta.usuario.nombre) ||
+        (venta.despacho && venta.despacho.nombreDestinatario) ||
+        'Cliente';
+      const emailCliente = (venta.usuario && venta.usuario.email) || '—';
+      const usuario = {
+        id: venta.usuario ? venta.usuario.id : venta.usuarioId,
+        nombre: nombreCliente,
+        email: emailCliente,
+      };
 
       return {
         id: venta.id,
         pedidoId: venta.id,
         ventaId: venta.id,
         numeroPedido: `PED-${String(venta.id).padStart(4, '0')}`,
-        cliente: venta.usuario
-          ? {
-              id: venta.usuario.id,
-              nombre: venta.usuario.nombre,
-              email: venta.usuario.email,
-            }
-          : { id: venta.usuarioId, nombre: 'Cliente', email: '—' },
+        cliente: usuario,
+        usuario,
         fecha: venta.createdAt,
         total: Number(venta.total),
         montoTotal: Number(venta.total),
@@ -418,6 +485,19 @@ async function pedidos(req, res, next) {
         trackingCode: despacho ? despacho.codigoSeguimiento : null,
         ubicacionActual: despacho ? despacho.ubicacionActual : null,
         despacho,
+        referenciaComprobante: transaccion ? transaccion.referenciaComprobante : null,
+        codigoTransaccion: transaccion ? transaccion.codigoTransaccion : null,
+        transaccion: transaccion
+          ? {
+              id: transaccion.id,
+              metodo: transaccion.metodo,
+              estado: transaccion.estado,
+              codigoTransaccion: transaccion.codigoTransaccion,
+              referenciaComprobante: transaccion.referenciaComprobante,
+              referenciaExterna: transaccion.referenciaExterna,
+              fechaProcesado: transaccion.fechaProcesado,
+            }
+          : null,
         recibo: venta.recibo
           ? {
               id: venta.recibo.id,
@@ -635,6 +715,31 @@ async function eliminarUsuario(req, res, next) {
   }
 }
 
+// REQ-PAG-QR-03: verificación manual del comprobante por ventas o admin.
+async function verificarComprobantePedido(req, res, next) {
+  try {
+    const ventaId = Number(req.params.ventaId || req.params.id);
+    if (!Number.isInteger(ventaId) || ventaId <= 0) {
+      throw new AppError('Pedido inválido', 400);
+    }
+
+    const { nota } = req.body || {};
+    const resultado = await cobroService.verificarComprobanteManual({
+      ventaId,
+      usuario: req.user,
+      nota,
+    });
+
+    res.json({
+      success: true,
+      message: 'Comprobante verificado. El pedido fue confirmado para despacho.',
+      ...resultado,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function transacciones(req, res, next) {
   try {
     const items = await cobroService.listarTransacciones({ limit: 100 });
@@ -660,6 +765,7 @@ module.exports = {
   alertasStock,
   pedidos,
   actualizarEstadoPedido,
+  verificarComprobantePedido,
   usuarios,
   crearUsuario,
   actualizarUsuario,

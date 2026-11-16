@@ -23,7 +23,7 @@ const AppError = require('../utils/AppError');
 const env = require('../config/env');
 const { round2, toCents, formatearMonto } = require('../utils/money');
 const { isValidToken, isValidTokenPasarela } = require('../utils/card');
-const { STAFF_ROLES } = require('../middlewares/rbac');
+const { STAFF_ROLES, getActiveFunction } = require('../middlewares/rbac');
 const pasarelaService = require('./pasarelaService');
 const reciboService = require('./reciboService');
 const emailService = require('./emailService');
@@ -31,6 +31,7 @@ const auditoriaService = require('./auditoriaService');
 const almacenService = require('./almacenService');
 const distribucionService = require('./distribucionService');
 const empresaService = require('./empresaService');
+const realtimeHub = require('./realtimeHub');
 
 const METODOS_PAGO = [
   {
@@ -93,6 +94,7 @@ function serializarTransaccion(transaccion) {
     moneda: transaccion.moneda,
     estado: transaccion.estado,
     motivoRechazo: transaccion.motivoRechazo,
+    referenciaComprobante: transaccion.referenciaComprobante || null,
     referenciaExterna: transaccion.referenciaExterna,
     ultimos4: transaccion.ultimos4,
     marcaTarjeta: transaccion.marcaTarjeta,
@@ -901,9 +903,11 @@ function serializarResultadoAprobado({
   despacho,
   email,
   idempotente,
+  requiereVerificacion = false,
 }) {
   return {
     idempotente: Boolean(idempotente),
+    requiereVerificacion: Boolean(requiereVerificacion),
     venta: {
       id: venta.id,
       estado: venta.estado,
@@ -977,6 +981,21 @@ async function responderIdempotente(previa, checkout) {
     );
   }
 
+  if (previa.estado === 'pendiente' && previa.metodo === 'transferencia') {
+    const despacho = await Despacho.findOne({ where: { ventaId: previa.ventaId } });
+    const venta = (checkout && checkout.venta) || (await Venta.findByPk(previa.ventaId));
+    return serializarResultadoAprobado({
+      venta,
+      checkout,
+      transaccion: previa,
+      recibo: null,
+      despacho,
+      email: null,
+      idempotente: true,
+      requiereVerificacion: true,
+    });
+  }
+
   if (previa.estado === 'discrepancia') {
     throw new AppError(
       'Discrepancia en el monto cobrado. La orden quedó pendiente para conciliación manual.',
@@ -1007,6 +1026,9 @@ async function procesarPago({
   if (!metodoInfo) {
     throw new AppError('Método de pago no soportado', 400);
   }
+
+  // REQ-PAG-QR-01: los pagos por transferencia / QR requieren verificación manual.
+  const esTransferencia = metodo === 'transferencia';
 
   const key = String(idempotencyKey || '').trim();
   if (key.length < 8 || key.length > 120) {
@@ -1046,6 +1068,17 @@ async function procesarPago({
       include: [{ model: Recibo, as: 'recibo' }],
     });
     if (aprobada) return responderIdempotente(aprobada, checkout);
+    const pendienteTransferencia = await Transaccion.findOne({
+      where: {
+        ventaId: checkout.ventaId,
+        metodo: 'transferencia',
+        estado: 'pendiente',
+      },
+      order: [['id', 'DESC']],
+    });
+    if (pendienteTransferencia) {
+      return responderIdempotente(pendienteTransferencia, checkout);
+    }
     throw new AppError('La orden ya fue pagada', 409);
   }
 
@@ -1212,8 +1245,13 @@ async function procesarPago({
             ? 'discrepancia'
             : resultado.estado === 'rechazado'
               ? 'rechazado'
-              : 'aprobado',
+              : esTransferencia
+                ? 'pendiente'
+                : 'aprobado',
         motivoRechazo: resultado.motivoRechazo || null,
+        referenciaComprobante: esTransferencia
+          ? datos.referenciaComprobante || null
+          : null,
         referenciaExterna: resultado.referenciaExterna,
         tokenPago: datos.tokenTarjeta || datos.tokenPasarela || null,
         ultimos4: datos.ultimos4 || null,
@@ -1375,38 +1413,53 @@ async function procesarPago({
     );
 
     const venta = await Venta.findByPk(checkout.ventaId, { transaction });
-    await venta.update({ estado: 'pagada', total: checkout.total }, { transaction });
+    await venta.update(
+      { estado: esTransferencia ? 'pendiente' : 'pagada', total: checkout.total },
+      { transaction }
+    );
 
     const carrito = await Carrito.findByPk(checkout.carritoId, { transaction });
     if (carrito) {
       await carrito.update({ estado: 'convertido' }, { transaction });
     }
 
-    const recibo = await reciboService.generarRecibo({
-      venta,
-      checkout,
-      transaccion,
-      lineas,
-      usuario,
-      transaction,
-    });
+    // REQ-PAG-QR-01: el recibo oficial se genera recién al verificar el comprobante.
+    const recibo = esTransferencia
+      ? null
+      : await reciboService.generarRecibo({
+          venta,
+          checkout,
+          transaccion,
+          lineas,
+          usuario,
+          transaction,
+        });
 
     await distribucionService.crearDespachoPago({
       venta,
       checkout,
       usuario,
       datosEntrega,
+      metodo,
       transaction,
     });
 
     await auditoriaService.registrar({
-      tipo: 'pago_aprobado',
+      tipo: esTransferencia ? 'pago_en_espera_comprobacion' : 'pago_aprobado',
       severidad: 'info',
-      mensaje: `Pago aprobado para la venta #${venta.id}`,
+      mensaje: esTransferencia
+        ? `Pago por transferencia registrado para la venta #${venta.id}. Comprobante pendiente de verificación manual.`
+        : `Pago aprobado para la venta #${venta.id}`,
       ventaId: venta.id,
       transaccionId: transaccion.id,
       usuarioId: usuario.id,
-      payload: { metodo, total: Number(checkout.total) },
+      payload: {
+        metodo,
+        total: Number(checkout.total),
+        referenciaComprobante: esTransferencia
+          ? datos.referenciaComprobante || null
+          : null,
+      },
       transaction,
     });
 
@@ -1447,6 +1500,19 @@ async function procesarPago({
   const venta = await Venta.findByPk(checkout.ventaId);
   const despacho = await Despacho.findOne({ where: { ventaId: checkout.ventaId } });
 
+  if (esTransferencia) {
+    return serializarResultadoAprobado({
+      venta,
+      checkout,
+      transaccion: desenlace.transaccion,
+      recibo: null,
+      despacho,
+      email: null,
+      idempotente: false,
+      requiereVerificacion: true,
+    });
+  }
+
   let email = null;
   try {
     email = await emailService.enviarRecibo({ recibo: desenlace.recibo, usuario });
@@ -1463,7 +1529,191 @@ async function procesarPago({
     despacho,
     email,
     idempotente: false,
+    requiereVerificacion: false,
   });
+}
+
+/**
+ * REQ-PAG-QR-03 / REQ-PAG-QR-04:
+ * Verificación manual del comprobante bancario / QR por ventas o admin.
+ */
+async function verificarComprobanteManual({ ventaId, usuario, nota }) {
+  if (!usuario) {
+    throw new AppError('Token de autenticación requerido', 401);
+  }
+
+  const funcionActiva = getActiveFunction(usuario);
+  const rolesUsuario = [usuario.rol, funcionActiva].filter(Boolean);
+  const esAdmin = rolesUsuario.includes('admin');
+  const esVentas = rolesUsuario.some((rol) => ['ventas', 'vendedor'].includes(rol));
+
+  if (!esAdmin && !esVentas) {
+    throw new AppError(
+      'Solo el personal de ventas o un administrador puede verificar comprobantes de pago',
+      403
+    );
+  }
+
+  const venta = await Venta.findByPk(ventaId, {
+    include: [
+      { model: Despacho, as: 'despacho' },
+      { model: Checkout, as: 'checkout' },
+      { model: Transaccion, as: 'transacciones' },
+    ],
+  });
+
+  if (!venta) {
+    throw new AppError('Pedido no encontrado', 404);
+  }
+
+  const despacho = venta.despacho;
+  if (!despacho) {
+    throw new AppError('El pedido no tiene un despacho asociado', 404);
+  }
+
+  const estadoActual = distribucionService.normalizarEstadoLogistico(despacho.estado);
+  if (estadoActual !== 'EN_ESPERA_COMPROBACION') {
+    throw new AppError('El pedido no se encuentra en espera de comprobación', 409);
+  }
+
+  const checkout = venta.checkout;
+  const lineas = [];
+  if (checkout) {
+    const itemsCheckout = await CheckoutItem.findAll({
+      where: { checkoutId: checkout.id },
+      order: [['id', 'ASC']],
+    });
+    for (const item of itemsCheckout) {
+      lineas.push({
+        varianteId: item.varianteId,
+        sku: item.sku,
+        nombreProducto: item.nombreProducto,
+        nombreVariante: item.nombreVariante,
+        cantidad: Number(item.cantidad),
+        precioUnitario: Number(item.precioUnitario),
+        subtotal: Number(item.subtotal),
+      });
+    }
+  }
+
+  const cliente = await Usuario.findByPk(venta.usuarioId);
+  const operadorNombre = (usuario && usuario.nombre) || usuario.username || 'Ventas BytePro';
+  const notaVerificacion =
+    (nota && String(nota).trim()) ||
+    'Comprobante de transferencia / QR verificado manualmente por el equipo comercial.';
+
+  let resultado = null;
+
+  await sequelize.transaction(async (transaction) => {
+    const transaccionesOrdenadas = (venta.transacciones || [])
+      .slice()
+      .sort((a, b) => Number(b.id) - Number(a.id));
+    const transaccion =
+      transaccionesOrdenadas.find(
+        (item) => item.metodo === 'transferencia' && item.estado === 'pendiente'
+      ) ||
+      transaccionesOrdenadas.find((item) => item.metodo === 'transferencia') ||
+      null;
+
+    if (transaccion) {
+      await transaccion.update(
+        {
+          estado: 'aprobado',
+          motivoRechazo: null,
+          fechaProcesado: new Date(),
+        },
+        { transaction }
+      );
+    }
+
+    await venta.update({ estado: 'pagada' }, { transaction });
+
+    let recibo = await Recibo.findOne({
+      where: { ventaId: venta.id },
+      transaction,
+    });
+
+    if (!recibo && checkout && transaccion) {
+      recibo = await reciboService.generarRecibo({
+        venta,
+        checkout,
+        transaccion,
+        lineas,
+        usuario: cliente,
+        transaction,
+      });
+    }
+
+    let historial = [];
+    if (Array.isArray(despacho.historial)) {
+      historial = [...despacho.historial];
+    } else if (typeof despacho.historial === 'string' && despacho.historial.trim()) {
+      try {
+        const parsed = JSON.parse(despacho.historial);
+        if (Array.isArray(parsed)) historial = parsed;
+      } catch (err) {
+        historial = [];
+      }
+    }
+    const hito = {
+      estado: 'PEDIDO_CONFIRMADO',
+      timestamp: new Date().toISOString(),
+      ubicacion: 'Área de Ventas BytePro',
+      puntoControl: 'Comprobante verificado manualmente',
+      nota: notaVerificacion,
+      fotos: [],
+      operador: operadorNombre,
+    };
+    const nuevoHistorial = [...historial, hito];
+
+    await despacho.update(
+      {
+        estado: 'PEDIDO_CONFIRMADO',
+        ubicacionActual: 'Centro de Recepción BytePro',
+        nota: 'Pago verificado. Pendiente de preparación.',
+        historial: nuevoHistorial,
+      },
+      { transaction }
+    );
+
+    await auditoriaService.registrar({
+      tipo: 'comprobante_qr_verificado',
+      severidad: 'info',
+      mensaje: `Comprobante verificado manualmente para la venta #${venta.id} por ${operadorNombre}`,
+      ventaId: venta.id,
+      transaccionId: transaccion ? transaccion.id : null,
+      usuarioId: usuario.id,
+      payload: {
+        metodo: 'transferencia',
+        referenciaComprobante: transaccion ? transaccion.referenciaComprobante : null,
+        codigoTransaccion: transaccion ? transaccion.codigoTransaccion : null,
+        nota: notaVerificacion,
+        operador: operadorNombre,
+      },
+      transaction,
+    });
+
+    resultado = { transaccion, recibo, historial: nuevoHistorial };
+  });
+
+  realtimeHub.emitTableChange('despachos', 'update', { id: despacho.id });
+  realtimeHub.emitTableChange('ventas', 'update', { id: venta.id });
+  realtimeHub.emitTableChange('recibos', 'insert', {
+    id: resultado && resultado.recibo ? resultado.recibo.id : null,
+  });
+
+  return {
+    venta: {
+      id: venta.id,
+      estado: 'pagada',
+      total: Number(venta.total),
+    },
+    transaccion: serializarTransaccion(resultado ? resultado.transaccion : null),
+    recibo: serializarRecibo(resultado ? resultado.recibo : null),
+    despacho: distribucionService.serializarDespacho(await Despacho.findByPk(despacho.id)),
+    verificadoPor: operadorNombre,
+    nota: notaVerificacion,
+  };
 }
 
 async function obtenerVenta({ usuario, ventaId }) {
@@ -1694,6 +1944,7 @@ module.exports = {
   crearCheckout,
   actualizarEntrega,
   procesarPago,
+  verificarComprobanteManual,
   obtenerVenta,
   obtenerRecibo,
   listarTransacciones,

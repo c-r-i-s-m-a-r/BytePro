@@ -39,6 +39,13 @@ const CIUDADES_COBERTURA = [
 
 const ETAPAS_DEFINICION = [
   {
+    codigo: 'EN_ESPERA_COMPROBACION',
+    nombre: 'En espera de comprobación',
+    descripcion: 'Esperando validación manual del comprobante bancario / QR',
+    ubicacionDefault: 'Área de Ventas BytePro',
+    orden: 0,
+  },
+  {
     codigo: 'PEDIDO_CONFIRMADO',
     nombre: 'Pedido confirmado',
     descripcion: 'Pago validado y orden recibida',
@@ -69,6 +76,7 @@ const ETAPAS_DEFINICION = [
 ];
 
 const TRANSICIONES_VALIDAS = {
+  EN_ESPERA_COMPROBACION: ['PEDIDO_CONFIRMADO', 'CANCELADO'],
   PREPARANDO_PEDIDO: ['PEDIDO_CONFIRMADO', 'EN_PREPARACION'],
   PEDIDO_CONFIRMADO: ['EN_PREPARACION'],
   EN_PREPARACION: ['EN_CAMINO'],
@@ -95,6 +103,9 @@ function buscarCiudadCobertura(ciudadInput) {
 
 function normalizarEstadoLogistico(estado) {
   const raw = String(estado || '').trim().toUpperCase();
+  if (raw === 'EN_ESPERA_COMPROBACION' || raw === 'EN ESPERA DE COMPROBACION') {
+    return 'EN_ESPERA_COMPROBACION';
+  }
   if (raw === 'PENDIENTE' || raw === 'PREPARANDO_PEDIDO') return 'PEDIDO_CONFIRMADO';
   if (raw === 'PREPARANDO') return 'EN_PREPARACION';
   if (raw === 'ENVIADO') return 'EN_CAMINO';
@@ -381,7 +392,16 @@ function construirEtapas(estadoActual, historial = []) {
   const defActual = ETAPAS_DEFINICION.find((e) => e.codigo === normalizado);
   const ordenActual = defActual ? defActual.orden : cancelado ? 0 : 1;
 
-  return ETAPAS_DEFINICION.map((def) => {
+  // La etapa de comprobación solo aplica a pagos por transferencia / QR.
+  const etapasVisibles = ETAPAS_DEFINICION.filter((def) => {
+    if (def.codigo !== 'EN_ESPERA_COMPROBACION') return true;
+    const tieneEvento = historial.some(
+      (h) => normalizarEstadoLogistico(h.estado) === def.codigo
+    );
+    return normalizado === def.codigo || tieneEvento;
+  });
+
+  return etapasVisibles.map((def) => {
     const evento = historial.find(
       (h) => normalizarEstadoLogistico(h.estado) === def.codigo
     );
@@ -409,6 +429,7 @@ function construirEtapas(estadoActual, historial = []) {
 function calcularProgreso(estadoActual) {
   const normalizado = normalizarEstadoLogistico(estadoActual);
   if (normalizado === 'CANCELADO') return 0;
+  if (normalizado === 'EN_ESPERA_COMPROBACION') return 10;
   if (normalizado === 'PEDIDO_CONFIRMADO') return 25;
   if (normalizado === 'EN_PREPARACION') return 50;
   if (normalizado === 'EN_CAMINO') return 75;
@@ -435,6 +456,7 @@ function etiquetaPildoraPedido(ventaEstado, despachoEstado) {
   if (log === 'ENTREGADO' || vnt === 'ENTREGADA') return 'Entregado';
   if (log === 'EN_CAMINO' || vnt === 'ENVIADA') return 'En camino';
   if (log === 'EN_PREPARACION') return 'En preparación';
+  if (log === 'EN_ESPERA_COMPROBACION') return 'En espera de comprobación';
   return 'Pagado';
 }
 
@@ -508,6 +530,7 @@ async function crearDespachoPago({
   checkout,
   usuario,
   datosEntrega,
+  metodo,
   transaction,
 }) {
   const entrega =
@@ -531,13 +554,26 @@ async function crearDespachoPago({
       ? existente.codigoSeguimiento
       : await generarCodigoTracking(ahora, transaction);
 
+  const esperaComprobante = String(metodo || '').trim().toLowerCase() === 'transferencia';
+  const estadoInicial = esperaComprobante ? 'EN_ESPERA_COMPROBACION' : 'PEDIDO_CONFIRMADO';
+  const ubicacionInicial = esperaComprobante
+    ? 'Área de Ventas BytePro'
+    : 'Centro de Recepción BytePro';
+  const notaInicial = esperaComprobante
+    ? 'Esperando verificación manual del comprobante de transferencia bancaria / QR.'
+    : 'Pago confirmado. Pendiente de preparación.';
+
   const eventoInicial = {
-    estado: 'PEDIDO_CONFIRMADO',
+    estado: estadoInicial,
     faseInicial: 'PREPARANDO_PEDIDO',
     timestamp: ahora.toISOString(),
-    ubicacion: 'Centro de Recepción BytePro',
-    puntoControl: 'Pago validado y orden recibida',
-    nota: 'Pago confirmado. Orden registrada para preparación en almacén.',
+    ubicacion: ubicacionInicial,
+    puntoControl: esperaComprobante
+      ? 'Comprobante pendiente de verificación manual'
+      : 'Pago validado y orden recibida',
+    nota: esperaComprobante
+      ? notaInicial
+      : 'Pago confirmado. Orden registrada para preparación en almacén.',
     fotos: [],
     operador: 'Sistema BytePro',
   };
@@ -546,17 +582,17 @@ async function crearDespachoPago({
     await existente.update(
       {
         codigoSeguimiento,
-        estado: 'PEDIDO_CONFIRMADO',
+        estado: estadoInicial,
         nombreDestinatario: entrega.nombreDestinatario,
         direccion: entrega.direccion,
         ciudad: entrega.ciudad,
         telefono: entrega.telefono,
         notas: entrega.notas,
-        ubicacionActual: 'Centro de Recepción BytePro',
+        ubicacionActual: ubicacionInicial,
         fechaEstimada,
         historial: [eventoInicial],
         fotos: [],
-        nota: 'Pago confirmado. Pendiente de preparación.',
+        nota: notaInicial,
       },
       { transaction }
     );
@@ -567,17 +603,17 @@ async function crearDespachoPago({
     {
       ventaId: venta.id,
       codigoSeguimiento,
-      estado: 'PEDIDO_CONFIRMADO',
+      estado: estadoInicial,
       nombreDestinatario: entrega.nombreDestinatario,
       direccion: entrega.direccion,
       ciudad: entrega.ciudad,
       telefono: entrega.telefono,
       notas: entrega.notas,
-      ubicacionActual: 'Centro de Recepción BytePro',
+      ubicacionActual: ubicacionInicial,
       fechaEstimada,
       historial: [eventoInicial],
       fotos: [],
-      nota: 'Pago confirmado. Pendiente de preparación.',
+      nota: notaInicial,
     },
     { transaction }
   );

@@ -79,6 +79,15 @@
             </div>
           </div>
 
+          <div
+            v-if="pedido.estadoLogistica === 'EN_ESPERA_COMPROBACION'"
+            class="alert alert-info mt-3"
+          >
+            <strong>En espera de comprobación de pago QR.</strong>
+            El comprobante de tu transferencia está en revisión por el equipo comercial de BytePro.
+            Confirmaremos tu pedido a la brevedad.
+          </div>
+
           <div v-if="pedidoActivoId === pedido.id" class="order-detail-panel mt-4">
             <div class="checkout-layout">
               <div>
@@ -367,6 +376,7 @@ function pildoraClass(pildora) {
   if (pildora === 'Entregado' || pildora === 'Pagado') return 'badge-stock';
   if (pildora === 'Cancelado') return 'badge-agotado';
   if (pildora === 'En camino' || pildora === 'En preparación') return 'badge-low';
+  if (pildora === 'En espera de comprobación') return 'badge-low';
   return '';
 }
 

@@ -9,10 +9,19 @@
     </div>
 
     <div v-if="checkout.aprobado" class="checkout-success">
-      <span class="success-badge">Pago confirmado</span>
-      <h1 class="page-title mt-4">Gracias por tu compra</h1>
+      <span class="success-badge">
+        {{ checkout.result.requiereVerificacion ? 'Pago en verificación' : 'Pago confirmado' }}
+      </span>
+      <h1 class="page-title mt-4">
+        {{ checkout.result.requiereVerificacion ? 'Pedido registrado' : 'Gracias por tu compra' }}
+      </h1>
       <p class="page-subtitle">
-        Pedido #{{ checkout.result.venta.id }} · Recibo {{ checkout.result.recibo.numero }}
+        Pedido #{{ checkout.result.venta.id }} ·
+        {{
+          checkout.result.recibo
+            ? `Recibo ${checkout.result.recibo.numero}`
+            : 'Comprobante pendiente de verificación'
+        }}
       </p>
 
       <div class="summary-card checkout-success-card mt-6">
@@ -36,7 +45,7 @@
           <span>{{ formatPrice(checkout.result.checkout.impuestos) }}</span>
         </div>
         <div class="summary-row total">
-          <span>Total pagado</span>
+          <span>{{ checkout.result.requiereVerificacion ? 'Total a pagar' : 'Total pagado' }}</span>
           <span>{{ formatPrice(checkout.result.checkout.total) }}</span>
         </div>
         <div class="summary-row">
@@ -61,7 +70,12 @@
         </div>
       </div>
 
-      <div class="alert alert-success mt-4">
+      <div v-if="checkout.result.requiereVerificacion" class="alert alert-info mt-4">
+        <strong>En espera de comprobación de pago QR.</strong>
+        El comprobante de tu transferencia está en revisión por el equipo comercial de BytePro.
+        Cuando sea verificado, recibirás tu recibo digital y el pedido pasará a preparación.
+      </div>
+      <div v-else class="alert alert-success mt-4">
         Se envió una copia del recibo a {{ emailDestino }}. El área de distribución fue
         notificada para preparar tu pedido.
       </div>
@@ -78,6 +92,7 @@
           Seguimiento de envío
         </RouterLink>
         <RouterLink
+          v-if="checkout.result.recibo"
           class="btn btn-secondary"
           :to="{ name: 'receipt', params: { ventaId: checkout.result.venta.id } }"
         >

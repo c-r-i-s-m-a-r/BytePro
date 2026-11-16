@@ -153,6 +153,17 @@ async function ensureColumns(tableName, columns) {
 
 sequelize.addHook('afterBulkSync', async () => {
   try {
+    // REQ-PAG-QR-01: en PostgreSQL el ENUM existente no se actualiza con sync().
+    if (sequelize.getDialect() === 'postgres') {
+      try {
+        await sequelize.query(
+          "ALTER TYPE \"enum_despachos_estado\" ADD VALUE IF NOT EXISTS 'EN_ESPERA_COMPROBACION';"
+        );
+      } catch (err) {
+        // El tipo aún no existe; sync() lo creará con el ENUM actualizado.
+      }
+    }
+
     await ensureColumns('despachos', {
       codigo_seguimiento: ' VARCHAR(40)',
       nombre_destinatario: ' VARCHAR(160)',
@@ -192,6 +203,10 @@ sequelize.addHook('afterBulkSync', async () => {
       sucursal_direccion: ' VARCHAR(255)',
       sucursal_telefono: ' VARCHAR(40)',
       sucursal_horarios: ' VARCHAR(255)',
+    });
+
+    await ensureColumns('transacciones', {
+      referencia_comprobante: ' VARCHAR(120)',
     });
 
     await ensureColumns('usuarios', {

@@ -111,6 +111,12 @@ function serializarResumenPedido(venta) {
     estadoActual: pildora,
     puedeCancelar,
     metodoPago,
+    referenciaComprobante:
+      (transacciones[0] && transacciones[0].referenciaComprobante) || null,
+    codigoTransaccion:
+      (venta.recibo && venta.recibo.codigoTransaccion) ||
+      (transacciones[0] && transacciones[0].codigoTransaccion) ||
+      null,
     codigoSeguimiento,
     trackingCode: codigoSeguimiento,
     seguimientoUrl: codigoSeguimiento ? `/seguimiento/${codigoSeguimiento}` : null,
@@ -142,35 +148,71 @@ function serializarResumenPedido(venta) {
 }
 
 async function listarPedidos({ usuario }) {
-  const ventas = await Venta.findAll({
-    where: {
-      usuarioId: usuario.id,
-      estado: { [Op.ne]: 'pendiente' },
-    },
+  const includeItems = () => ({
+    model: VentaItem,
+    as: 'items',
     include: [
       {
-        model: VentaItem,
-        as: 'items',
-        include: [
-          {
-            model: Variante,
-            as: 'variante',
-            include: [{ model: Producto, as: 'producto' }],
-          },
-        ],
+        model: Variante,
+        as: 'variante',
+        include: [{ model: Producto, as: 'producto' }],
       },
-      { model: Despacho, as: 'despacho' },
-      { model: Recibo, as: 'recibo' },
-      { model: Checkout, as: 'checkout' },
-      { model: Transaccion, as: 'transacciones' },
-    ],
-    order: [
-      ['createdAt', 'DESC'],
-      ['id', 'DESC'],
     ],
   });
+  const includeRecibo = () => ({ model: Recibo, as: 'recibo' });
+  const includeCheckout = () => ({ model: Checkout, as: 'checkout' });
+  const includeTransacciones = () => ({ model: Transaccion, as: 'transacciones' });
+  const ordenVentas = [
+    ['createdAt', 'DESC'],
+    ['id', 'DESC'],
+  ];
 
-  return ventas.map(serializarResumenPedido);
+  // REQ-PAG-QR-01: las ventas por transferencia quedan "pendiente" hasta la
+  // verificación manual, pero el cliente debe seguir viéndolas en su historial.
+  const [ventas, pendientesComprobante] = await Promise.all([
+    Venta.findAll({
+      where: {
+        usuarioId: usuario.id,
+        estado: { [Op.ne]: 'pendiente' },
+      },
+      include: [
+        includeItems(),
+        { model: Despacho, as: 'despacho' },
+        includeRecibo(),
+        includeCheckout(),
+        includeTransacciones(),
+      ],
+      order: ordenVentas,
+    }),
+    Venta.findAll({
+      where: {
+        usuarioId: usuario.id,
+        estado: 'pendiente',
+      },
+      include: [
+        includeItems(),
+        {
+          model: Despacho,
+          as: 'despacho',
+          where: { estado: 'EN_ESPERA_COMPROBACION' },
+          required: true,
+        },
+        includeRecibo(),
+        includeCheckout(),
+        includeTransacciones(),
+      ],
+      order: ordenVentas,
+    }),
+  ]);
+
+  return [...ventas, ...pendientesComprobante]
+    .sort((a, b) => {
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      if (tb !== ta) return tb - ta;
+      return Number(b.id) - Number(a.id);
+    })
+    .map(serializarResumenPedido);
 }
 
 async function obtenerDetallePedido({ usuario, ventaId }) {

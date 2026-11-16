@@ -75,6 +75,12 @@
           </div>
         </div>
 
+        <div v-if="tracking.estado === 'EN_ESPERA_COMPROBACION'" class="alert alert-info mb-4">
+          <strong>En espera de comprobación de pago QR.</strong>
+          El comprobante de tu transferencia está en revisión por el equipo comercial de BytePro.
+          Tu pedido será confirmado a la brevedad.
+        </div>
+
         <div class="tracking-progress-bar" aria-label="Progreso del envío">
           <div
             class="tracking-progress-fill"
@@ -295,6 +301,7 @@ function estadoClass(estado) {
   if (estado === 'ENTREGADO') return 'badge-stock';
   if (estado === 'CANCELADO') return 'badge-agotado';
   if (estado === 'EN_CAMINO') return 'badge-low';
+  if (estado === 'EN_ESPERA_COMPROBACION') return 'badge-low';
   return '';
 }
 

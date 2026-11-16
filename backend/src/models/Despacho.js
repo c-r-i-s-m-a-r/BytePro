@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       codigoSeguimiento: { type: DataTypes.STRING(40), allowNull: true, unique: true },
       estado: {
         type: DataTypes.ENUM(
+          'EN_ESPERA_COMPROBACION',
           'PEDIDO_CONFIRMADO',
           'PREPARANDO_PEDIDO',
           'EN_PREPARACION',

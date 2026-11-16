@@ -35,15 +35,18 @@
             <tr v-for="p in pedidos" :key="p.id">
               <td><strong>{{ p.numeroPedido }}</strong></td>
               <td>
-                <div>{{ p.usuario ? p.usuario.nombre : 'Cliente' }}</div>
-                <small class="field-hint">{{ p.usuario ? p.usuario.email : '' }}</small>
+                <div>{{ nombreCliente(p) }}</div>
+                <small class="field-hint">{{ emailCliente(p) }}</small>
               </td>
               <td>{{ formatDateTime(p.fecha) }}</td>
               <td>{{ formatPrice(p.total) }}</td>
               <td>
-                <span class="badge" :class="p.estadoPago === 'aprobado' ? 'badge-stock' : 'badge-low'">
-                  {{ p.estadoPago }}
+                <span class="badge" :class="pagoBadge(p)">
+                  {{ etiquetaPago(p) }}
                 </span>
+                <div v-if="referenciaPedido(p)" class="field-hint mt-2">
+                  Comprobante: {{ referenciaPedido(p) }}
+                </div>
               </td>
               <td>
                 <span v-if="p.codigoSeguimiento" class="font-semibold text-primary">
@@ -53,13 +56,25 @@
               </td>
               <td>
                 <span class="badge" :class="logisticaBadge(p.estadoLogistica)">
-                  {{ p.estadoLogistica }}
+                  {{ etiquetaLogistica(p.estadoLogistica) }}
                 </span>
               </td>
               <td>
                 <span v-if="esPedidoCancelado(p)" class="field-hint">-</span>
                 <div v-else-if="p.estadoLogistica === 'ENTREGADO'" class="field-hint text-success">
                   Entrega completada
+                </div>
+                <div v-else-if="p.estadoLogistica === 'EN_ESPERA_COMPROBACION'">
+                  <button
+                    v-if="puedeVerificarComprobante"
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    :disabled="verificandoPedidoId === p.id"
+                    @click="verificarComprobante(p)"
+                  >
+                    {{ verificandoPedidoId === p.id ? 'Verificando…' : 'Verificar comprobante' }}
+                  </button>
+                  <span v-else class="field-hint">Pendiente de verificación por ventas</span>
                 </div>
                 <div v-else class="admin-dispatch-controls">
                   <button
@@ -318,6 +333,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
+import { useAuthStore } from '../../store/auth';
 import { subscribeToTables } from '../../services/realtime';
 import { formatDateTime, formatPrice } from '../../utils/format';
 import {
@@ -326,11 +342,19 @@ import {
   MAX_SOURCE_IMAGE_BYTES,
 } from '../../utils/imageCompressor';
 
+const auth = useAuthStore();
 const pedidos = ref([]);
 const pedidosPagination = ref({ page: 1, limit: 15, total: 0, totalPages: 0 });
 const actualizandoPedidoId = ref(null);
+const verificandoPedidoId = ref(null);
 const despachoError = ref('');
 const despachoExito = ref('');
+
+// REQ-PAG-QR-03: solo ventas (vendedor en la app) o admin verifican comprobantes.
+const puedeVerificarComprobante = computed(() => {
+  if (auth.isAdmin) return true;
+  return ['ventas', 'vendedor', 'admin'].includes(auth.funcionActiva);
+});
 
 const modalAvance = reactive({
   abierto: false,
@@ -367,6 +391,59 @@ const historialPedido = computed(() => {
   return [];
 });
 
+function nombreCliente(p) {
+  if (!p) return 'Cliente';
+  return p.cliente?.nombre || p.usuario?.nombre || p.despacho?.destinatario || 'Cliente';
+}
+
+function emailCliente(pedido) {
+  return pedido?.cliente?.email || pedido?.usuario?.email || '';
+}
+
+function referenciaPedido(pedido) {
+  return (
+    pedido?.referenciaComprobante ||
+    pedido?.transaccion?.referenciaComprobante ||
+    pedido?.codigoTransaccion ||
+    pedido?.transaccion?.codigoTransaccion ||
+    ''
+  );
+}
+
+function etiquetaPago(pedido) {
+  if (pedido?.estadoLogistica === 'EN_ESPERA_COMPROBACION') {
+    return 'En espera de comprobación';
+  }
+  const estado = String(pedido?.estadoPago || '').toLowerCase();
+  if (estado === 'pagado' || estado === 'aprobado') return 'Pagado';
+  if (estado === 'cancelado') return 'Cancelado';
+  return pedido?.estadoPago || 'Pendiente';
+}
+
+function pagoBadge(pedido) {
+  if (pedido?.estadoLogistica === 'EN_ESPERA_COMPROBACION') return 'badge-low';
+  if (pedido?.estadoPago === 'CANCELADO') return 'badge-agotado';
+  if (pedido?.estadoPago === 'PAGADO' || pedido?.estadoPago === 'aprobado') return 'badge-stock';
+  return 'badge-low';
+}
+
+async function verificarComprobante(pedido) {
+  if (!pedido || verificandoPedidoId.value) return;
+  despachoError.value = '';
+  despachoExito.value = '';
+  verificandoPedidoId.value = pedido.id;
+
+  try {
+    await api.patch(`/admin/pedidos/${pedido.id}/verificar-comprobante`);
+    despachoExito.value = `Comprobante del pedido ${pedido.numeroPedido} verificado. El pedido pasó a PEDIDO_CONFIRMADO.`;
+    await cargar();
+  } catch (err) {
+    despachoError.value = apiErrorMessage(err);
+  } finally {
+    verificandoPedidoId.value = null;
+  }
+}
+
 function esPedidoCancelado(pedido) {
   if (!pedido) return false;
   return (
@@ -375,10 +452,16 @@ function esPedidoCancelado(pedido) {
   );
 }
 
+function etiquetaLogistica(estado) {
+  if (estado === 'EN_ESPERA_COMPROBACION') return 'En espera de comprobación';
+  return estado;
+}
+
 function logisticaBadge(estado) {
   if (estado === 'ENTREGADO') return 'badge-stock';
   if (estado === 'CANCELADO') return 'badge-agotado';
   if (estado === 'EN_CAMINO' || estado === 'EN_PREPARACION') return 'badge-low';
+  if (estado === 'EN_ESPERA_COMPROBACION') return 'badge-low';
   return '';
 }
 
