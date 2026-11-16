@@ -2063,13 +2063,70 @@ select:focus,
   .catalog-layout {
     grid-template-columns: 1fr;
   }
+  /* REQ-CAT-MOB-01: una sola tarjeta por fila en móviles */
   .product-grid,
   .loading-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    width: 100%;
+  }
+  /* REQ-CAT-MOB-03: toolbar y selects sin desbordamiento horizontal */
+  .catalog-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+  .toolbar-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    width: 100%;
+  }
+  .toolbar-controls label {
+    display: none;
+  }
+  .toolbar-controls .select-inline {
+    min-width: 0;
+    width: 100%;
+    height: 40px;
+    font-size: 13px;
+  }
+  /* REQ-CAT-MOB-02: panel de filtros compacto */
+  .filters-panel {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+  }
+  .filter-group {
+    padding: var(--space-2) 0;
+  }
+  .filters-panel .select,
+  .filters-panel .input {
+    height: 38px;
+    font-size: 13px;
+  }
+  /* REQ-CAT-MOB-04: acciones de tarjeta adaptadas a una columna */
+  .product-card {
+    padding: var(--space-4);
   }
   .product-media {
-    height: 140px;
+    height: 200px;
+  }
+  .product-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .product-actions .product-add-btn {
+    flex: 1 1 100%;
+    min-height: 42px;
+  }
+  .product-actions .btn-secondary,
+  .product-actions .compare-toggle {
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
+    text-align: center;
+    min-height: 38px;
   }
   .product-name {
     font-size: 14px;

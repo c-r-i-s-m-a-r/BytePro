@@ -263,3 +263,62 @@ Implementación completa en producción para **SPEC-001** a **SPEC-018**.
   - `insignia` reemplaza nombre, categoría, precio y especificación con los datos reales (derivados de `especificaciones`: VRAM + tipo de memoria, núcleos/hilos, capacidad/tipo/velocidad).
   - Si `imagenPrincipal`, `imagen`, `imagenes[0]` o la imagen de la variante existe, se renderiza `<img class="landing-feature-photo">` con `width/height: 100%` y `object-fit: contain`; si no, se mantiene el icono temático (`iconGrafica`, `iconProcesador`, `iconMemoria`).
 - **Verificación**: `npm --prefix frontend run build` sin errores (LandingView ≈ 40.0 kB) y `git diff --check` sin observaciones.
+
+### SPEC-023: Ocultamiento de la Barra de Navegación en Vista Móvil de la Landing Page
+- **REQ-LND-MOB-01 — Navegación oculta en móviles**:
+  - En `@media (max-width: 767px)` se declara `.landing-nav { display: none; }`, por lo que enlaces como Productos, Arma tu setup, Categorías, Envíos y Ayuda no se renderizan visualmente en teléfonos.
+  - Se eliminaron las reglas previas de `order: 3`, `flex-basis: 100%` y `overflow-x: auto`, que provocaban una segunda fila con scroll horizontal.
+- **REQ-LND-MOB-02 — Cabecera bipolar en una sola fila**:
+  - `.landing-header-inner` usa `flex-direction: row`, `flex-wrap: nowrap`, `justify-content: space-between`, `align-items: center`, `gap: 10px`, `min-height: 64px` y `padding: 10px 0`.
+  - `.landing-brand` queda con `flex: 0 0 auto` a la izquierda y `.landing-header-actions` con `flex: 0 0 auto; margin-left: auto` a la derecha.
+- **REQ-LND-MOB-03 / REQ-LND-MOB-04 — Acciones de invitados y autenticados**:
+  - `.landing-header-actions` mantiene `display: flex`, `gap: 10px` y `white-space: nowrap`; los botones "Iniciar sesión" y "Crear cuenta" (o "Mi cuenta" / "Panel corporativo" según `auth.isAuthenticated` / `auth.isStaff`) no se parten en varias líneas.
+  - Se compactaron tamaños en móvil (logo 30 px, marca 0.98 rem, enlaces 0.82 rem, botón primario `padding: 9px 14px`) para evitar desbordes en pantallas angostas.
+- **REQ-LND-MOB-05 — Preservación en tablet y escritorio**:
+  - Las reglas móviles viven solo dentro de `@media (max-width: 767px)`; desde 768 px se conservan `.landing-nav` con `display: flex` y todos sus enlaces.
+  - El ajuste de branding móvil se limitó a `.landing-header .landing-brand` y `.landing-header .landing-brand-logo` para no alterar el logo del footer.
+- **Verificación**: `npm --prefix frontend run build` sin errores (LandingView ≈ 40.0 kB) y `git diff --check` sin observaciones.
+
+### SPEC-024: Corrección de Desbordamiento y Eliminación de Scroll Horizontal en Vista Móvil
+- **REQ-MOB-FIX-01 — Contención absoluta del viewport**:
+  - `.landing-page` y `.landing-main` declaran `width: 100%`, `max-width: 100vw`, `overflow-x: hidden`, `box-sizing: border-box`.
+  - Se añade `overflow-x: clip` como declaración posterior: los navegadores modernos la aplican y no crean un contenedor de scroll, preservando el `position: sticky` de `.landing-header`; los antiguos conservan el fallback `hidden`.
+  - `.landing-page *`, `.landing-page *::before` y `.landing-page *::after` usan `box-sizing: border-box` (scoped al componente).
+- **REQ-MOB-FIX-02 — Reseteo de `min-width: 0`**:
+  - En `@media (max-width: 767px)` se aplica `min-width: 0; max-width: 100%; box-sizing: border-box` a los hijos de todos los contenedores flex/grid de la landing (header, hero, presets, trust, feature, section-head, builder, steps, purpose, slider, suggestion, categorías, beneficios, CTA y footer).
+  - Con ello los textos largos y botones se comprimen en lugar de forzar el ancho `min-content`.
+- **REQ-MOB-FIX-03 — Cabecera auto-ajustable (320–480 px)**:
+  - `.landing-container`: `padding: 0 14px`, `width/max-width: 100%`, `box-sizing: border-box`.
+  - `.landing-header-inner`: `row / nowrap / space-between / center`, `gap: 8px`, `min-height: 56px`, `padding: 8px 0`.
+  - Branding: logo 26×26 px, `font-size: 0.90rem`, `gap: 6px`; acciones con `gap: 6px`; enlaces `0.78rem` y `padding: 6px 8px`; botón primario `0.78rem`, `padding: 6px 12px`, `border-radius: 10px`.
+  - Nuevo `@media (max-width: 340px)` con padding 10 px, logo 22 px, marca 0.82 rem y acciones 0.70 rem para que "Iniciar sesión" + "Crear cuenta" quepan en 320 px sin desbordar.
+- **REQ-MOB-FIX-04 — Presets apilados**:
+  - `.landing-preset-tabs` pasa a `display: grid; grid-template-columns: 1fr; width/max-width: 100%; padding: 4px; gap: 4px; border-radius: 14px`.
+  - `.landing-preset-tab` ocupa `width: 100%`, con `min-width: 0`, `text-align: center`, `justify-content: center`, `padding: 9px 12px`, `font-size: 0.78rem`, `white-space: normal` y `word-break: break-word`.
+- **REQ-MOB-FIX-05 — Botones y pilares de confianza al 100%**:
+  - `.landing-hero-actions` y `.landing-cta-actions` se vuelven columna al 100% con `gap: 10px`; sus botones primarios y secundarios usan `width: 100%`, `justify-content: center` y `text-align: center`.
+  - `.landing-trust-inline` pasa a columna con `gap: 8px` y `align-items: flex-start`.
+  - Ajustes adicionales de contención: `.landing-step` (padding 16 px, radio 16 px), `.landing-slider-scale` (0.70 rem), `.landing-suggestion` (padding 16 px, radio 16 px), `.landing-suggestion-name` (`overflow-wrap: anywhere`, `word-break: break-word`, `min-width: 0`) y `.landing-cta` (padding 32 px 16 px, radio 20 px).
+- **Verificación**: `npm --prefix frontend run build` sin errores (LandingView ≈ 40.0 kB, CSS de la vista generado en `dist/assets/LandingView-*.css`) y `git diff --check` sin observaciones.
+
+### SPEC-025: Adaptación Móvil del Catálogo (Una Columna + Panel de Filtros Compacto)
+- **REQ-CAT-MOB-01 — Cards a una columna**:
+  - En `frontend/src/assets/styles.css`, dentro de `@media (max-width: 767px)`, `.product-grid` y `.loading-grid` usan `grid-template-columns: 1fr; gap: var(--space-4); width: 100%`.
+  - Se sustituyó la regla previa de 2 columnas que apretaba las tarjetas en pantallas de 320–414 px.
+- **REQ-CAT-MOB-02 — Panel de filtros compacto y plegable**:
+  - `.filters-panel`: `padding: var(--space-3) var(--space-4)`, `border-radius: var(--radius-lg)` y `margin-bottom: var(--space-4)`.
+  - `.filter-group`: `padding: var(--space-2) 0`; `.filters-panel .select` e `.filters-panel .input`: `height: 38px; font-size: 13px`.
+  - `FilterSidebar.vue` incorpora el estado reactivo `filtrosVisiblesMovil = ref(false)` y un botón acordeón en `.filters-header` con texto **"Filtros (N activos)"**, `aria-expanded` y `aria-controls="filters-body"`.
+  - El contador `filtrosActivos` (computed) suma búsqueda, categoría, marca, precio mín/máx y atributos con valor; el botón **Limpiar** se conserva cuando `catalog.hayFiltrosActivos`.
+  - El cuerpo `.filters-body` se oculta en móvil con `.filters-body--collapsed` cuando el acordeón está cerrado; en escritorio la clase no tiene efecto y el panel permanece siempre visible. El chevron rota 180° al abrir.
+- **REQ-CAT-MOB-03 — Toolbar sin desbordes**:
+  - `.catalog-toolbar`: `flex-direction: column; align-items: stretch; gap: var(--space-2)`.
+  - `.toolbar-controls`: `display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); width: 100%`; sus `<label>` se ocultan en móvil.
+  - `.toolbar-controls .select-inline`: `min-width: 0; width: 100%; height: 40px; font-size: 13px`, anulando el `min-width: 190px` base.
+- **REQ-CAT-MOB-04 — Acciones de tarjeta**:
+  - `.product-card` con `padding: var(--space-4)` y `.product-media` con `height: 200px`.
+  - `.product-actions` en flex con wrap y `gap: var(--space-2)`; `.product-add-btn` ocupa `flex: 1 1 100%; min-height: 42px`.
+  - `.btn-secondary` y `.compare-toggle` comparten la fila inferior con `flex: 1 1 calc(50% - 6px)`, centrados y con `min-height: 38px`.
+- **REQ-CAT-MOB-05 — Sin scroll horizontal**:
+  - Con la cuadrícula a 1 columna, los selects sin ancho mínimo y el panel compacto, ningún bloque excede el `100%` del contenedor en 320–767 px.
+- **Verificación**: `npm --prefix frontend run build` sin errores (CSS global y `CatalogView` con las nuevas reglas) y `git diff --check` sin observaciones.

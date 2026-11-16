@@ -25,6 +25,9 @@
 - [x] Adaptabilidad Móvil y Menús Ocultos en Desplegables para Teléfonos (Mobile Responsive Navigation) (EARS) - `.specs/requirements/SPEC-020-navegacion-movil-menus-desplegables.md`
 - [x] Rediseño Interactivo y Minimalista Moderno de la Landing Page: Selector de Presets en Hero y Simulador de Presupuesto en Bs. (EARS) - `.specs/requirements/SPEC-021-landing-page-rediseño-interactivo.md`
 - [x] Simulador "Arma tu Setup" con Productos Reales, Adición Directa al Carrito y Fotos Reales en Tarjeta Insignia con Fallback Visual (EARS) - `.specs/requirements/SPEC-022-simulador-productos-reales-carrito-imagenes.md`
+- [x] Ocultamiento de Barra de Navegación en Vista Móvil de la Landing Page (EARS) - `.specs/requirements/SPEC-023-landing-mobile-ocultar-navegacion.md`
+- [x] Corrección de Desbordamiento y Eliminación de Scroll Horizontal en Vista Móvil (EARS) - `.specs/requirements/SPEC-024-correccion-scroll-horizontal-vista-movil.md`
+- [x] Adaptación Móvil del Catálogo: Productos a Una Columna y Reducción del Panel de Filtros (EARS) - `.specs/requirements/SPEC-025-catalogo-movil-cards-una-columna-panel-filtros.md`
 
 ## 2. Implementación (backend / frontend) - [A cargo de `implementador`]
 - [x] Base de datos, modelos y migraciones iniciales (SQLite + Sequelize)
@@ -76,6 +79,9 @@
 - [x] Adaptabilidad móvil: menú hamburguesa con drawer, cierre por enlace/backdrop/Escape y selector desplegable de módulos corporativos (SPEC-020, REQ-MOB-01 a REQ-MOB-05) [A cargo de `implementador`]
 - [x] Rediseño de la Landing Page: hero con 3 presets interactivos, simulador de presupuesto en 3 pasos con slider Bs. 2.500–25.000, categorías con micro-animaciones y franja de 4 beneficios (SPEC-021, REQ-LND-01 a REQ-LND-06) [A cargo de `implementador`]
 - [x] Simulador con productos reales del catálogo, botón "Agregar setup al carrito" con apertura del drawer y foto real del producto en la tarjeta insignia con fallback temático (SPEC-022, REQ-SET-01 a REQ-SET-04) [A cargo de `implementador`]
+- [x] Fix: Ocultar barra de navegación en vista móvil de la landing page, preservando únicamente branding y acciones de sesión/cuenta (SPEC-023, REQ-LND-MOB-01 a REQ-LND-MOB-05) [A cargo de `implementador`]
+- [x] Fix: Corrección de desbordamiento horizontal y contención completa en vista móvil, eliminando cualquier scroll horizontal (SPEC-024, REQ-MOB-FIX-01 a REQ-MOB-FIX-05) [A cargo de `implementador`]
+- [x] Fix: Adaptación del catálogo a móvil con cards a una columna, reducción y acordeón en panel de filtros y reseteo de anchos en toolbar (SPEC-025, REQ-CAT-MOB-01 a REQ-CAT-MOB-05) [A cargo de `implementador`]
 
 ## 3. Pruebas y Revisión - [A cargo exclusivo de `revisor`]
 - [x] Verificación de cumplimiento de specs EARS (SPEC-001 al SPEC-016 y requerimientos de navegación)

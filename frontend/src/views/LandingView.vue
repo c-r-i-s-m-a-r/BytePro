@@ -1048,6 +1048,29 @@ onMounted(async () => {
   background: var(--lp-bg);
   color: var(--lp-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* REQ-MOB-FIX-01: contención absoluta del viewport, sin scroll horizontal */
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.landing-main {
+  /* REQ-MOB-FIX-01: el contenedor principal tampoco puede exceder el viewport */
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+/* REQ-MOB-FIX-02: el modelo de caja no suma padding/borde al ancho declarado */
+.landing-page *,
+.landing-page *::before,
+.landing-page *::after {
+  box-sizing: border-box;
 }
 
 .landing-container {
@@ -2113,26 +2136,95 @@ onMounted(async () => {
 }
 
 @media (max-width: 767px) {
+  /* REQ-MOB-FIX-01 / REQ-MOB-FIX-03: contenedor móvil sin desbordes */
   .landing-container {
-    padding: 0 18px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 14px;
   }
 
+  /* REQ-MOB-FIX-02: los hijos flex/grid pueden encogerse por debajo de su min-content */
+  .landing-container > *,
+  .landing-header-inner > *,
+  .landing-hero-grid > *,
+  .landing-preset-tabs > *,
+  .landing-hero-actions > *,
+  .landing-trust-inline > *,
+  .landing-feature-top > *,
+  .landing-feature-points > *,
+  .landing-feature-footer > *,
+  .landing-section-head > *,
+  .landing-builder-layout > *,
+  .landing-step-head > *,
+  .landing-purpose-grid > *,
+  .landing-purpose-btn > *,
+  .landing-slider-scale > *,
+  .landing-suggestion-head > *,
+  .landing-suggestion-list > *,
+  .landing-suggestion-list li > *,
+  .landing-suggestion-total > *,
+  .landing-category-grid > *,
+  .landing-category-card > *,
+  .landing-category-body > *,
+  .landing-benefits-grid > *,
+  .landing-cta-actions > *,
+  .landing-footer-grid > *,
+  .landing-footer-col > *,
+  .landing-footer-bottom > * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* REQ-MOB-FIX-03: cabecera móvil en una sola fila, branding a la izquierda y acciones a la derecha */
   .landing-header-inner {
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 12px 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 8px 0;
   }
 
+  /* REQ-LND-MOB-01: la barra de navegación se oculta por completo en móviles */
   .landing-nav {
-    order: 3;
-    flex-basis: 100%;
-    gap: 16px;
-    overflow-x: auto;
-    padding-bottom: 2px;
+    display: none;
   }
 
+  .landing-header .landing-brand {
+    flex: 0 0 auto;
+    gap: 6px;
+    font-size: 0.90rem;
+  }
+
+  .landing-header .landing-brand-logo {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* REQ-LND-MOB-03 / REQ-LND-MOB-04: acciones alineadas a la derecha sin saltos de línea */
   .landing-header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
     margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .landing-header-actions .landing-link-btn {
+    font-size: 0.78rem;
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+
+  .landing-header-actions .landing-primary-btn {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    border-radius: 10px;
+    white-space: nowrap;
   }
 
   .landing-hero {
@@ -2147,17 +2239,56 @@ onMounted(async () => {
     font-size: 0.92rem;
   }
 
+  /* REQ-MOB-FIX-04: presets apilados al 100% del ancho, sin desbordar */
   .landing-preset-tabs {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
-    border-radius: 18px;
+    max-width: 100%;
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
   }
 
   .landing-preset-tab {
-    flex: 1 1 auto;
-    padding: 10px 12px;
-    border-radius: 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 9px 12px;
+    border-radius: 10px;
     font-size: 0.78rem;
+    text-align: center;
+    justify-content: center;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* REQ-MOB-FIX-05: acciones del Hero a ancho completo */
+  .landing-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .landing-hero-actions .landing-primary-btn,
+  .landing-hero-actions .landing-secondary-btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .landing-trust-inline {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .landing-step {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .landing-slider-scale {
+    font-size: 0.70rem;
   }
 
   .landing-feature-card {
@@ -2215,7 +2346,14 @@ onMounted(async () => {
   }
 
   .landing-suggestion {
-    padding: 20px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .landing-suggestion-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .landing-category-grid,
@@ -2225,12 +2363,57 @@ onMounted(async () => {
   }
 
   .landing-cta {
-    padding: 38px 20px;
+    padding: 32px 16px;
+    border-radius: 20px;
+  }
+
+  .landing-cta-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .landing-cta-actions .landing-primary-btn,
+  .landing-cta-actions .landing-secondary-btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 
   .landing-footer-bottom {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* REQ-MOB-FIX-03: compresión fluida en pantallas ultra compactas (<= 340px) */
+@media (max-width: 340px) {
+  .landing-container {
+    padding: 0 10px;
+  }
+
+  .landing-header .landing-brand {
+    gap: 5px;
+    font-size: 0.82rem;
+  }
+
+  .landing-header .landing-brand-logo {
+    width: 22px;
+    height: 22px;
+  }
+
+  .landing-header-actions {
+    gap: 4px;
+  }
+
+  .landing-header-actions .landing-link-btn {
+    padding: 5px 5px;
+    font-size: 0.70rem;
+  }
+
+  .landing-header-actions .landing-primary-btn {
+    padding: 5px 9px;
+    font-size: 0.70rem;
   }
 }
 </style>
