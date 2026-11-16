@@ -1,0 +1,48 @@
+# Coordinación y Estado del Agente Especificador
+
+## Rol
+- Generar especificaciones funcionales y de sistema bajo el estándar **EARS**.
+- Ubicar borradores en `.specs/`.
+- Esperar aprobación/revisión humana antes de traspaso a `implementador`.
+- Archivar especificaciones validadas en `.specs/requirements/` o `.specs/development/requeriments.md`.
+
+## Estado actual
+- Estructura base de carpetas de proyecto creada (`backend/`, `frontend/`, `.specs/`).
+- Especificaciones completadas bajo estándar EARS en `.specs/requirements/`:
+  - `SPEC-001`: Seguridad y Autenticación (persistencia de usuarios en SQLite local).
+  - `SPEC-002`: Catálogo Base (búsqueda, cuadrícula 4 col y filtros).
+  - `SPEC-003`: Catálogo Avanzado (atributos técnicos de hardware, SKUs y comparador).
+  - `SPEC-004`: Ventas y Carrito (control de sesión, merge de invitado y empty states).
+  - `SPEC-005`: Cobros y Pasarela (idempotencia y bloqueo de 10 min).
+  - `SPEC-006`: Almacén e Inventario (Kardex inmutable, transacciones SQLite y bloqueo de 10 min).
+  - `SPEC-007`: Distribución y Envíos (ciclo de vida de 4 etapas, tracking `TRK-...` y **exigencia obligatoria de inicio de sesión activo para consultar seguimiento `/seguimiento` [REQ-DIS-07]**) en `.specs/requirements/SPEC-007-distribucion-envios-tracking.md`.
+  - `SPEC-008`: Mi Cuenta, Historial de Pedidos, Cancelaciones y Direcciones Guardadas.
+  - `SPEC-001`: Seguridad y Autenticación (usuarios persistidos en SQLite, política de bloqueo por intentos fallidos de contraseña para clientes y empleados, y **cuenta regresiva visual en tiempo real segundo a segundo en los formularios de login [REQ-SEC-10 y REQ-SEC-11]**).
+  - `SPEC-009`: Dashboard de Empresa, KPIs de ventas y Alertas de Reabastecimiento (**pedidos cancelados no muestran controles ni texto en 'Avanzar fase' [REQ-ADM-15]**) en `.specs/requirements/SPEC-009-empresa-dashboard-metricas.md`.
+  - `SPEC-010`: Diseño de Interfaz y UX Transversal (+14% escala general, cuadrícula de 3 productos por fila, selects estilizados, botones redondeados, botones de advertencia en rojo, diálogo de confirmación en acciones decisivas, barra de filtros un 12% más amplia [REQ-UI-10], ancho completo fluido full-width [REQ-UI-11], barra lateral deslizable de carrito [REQ-UI-12], botón rápido en catálogo [REQ-UI-13], **iconos locales `icon-transfer`, `icon-help` e `icon-cube` en navbar [REQ-UI-14], estado activo coloreado persistente en navegación [REQ-UI-15], ancla BytePro dirigida a catálogo todos para clientes logueados [REQ-UI-16] y retiro de 'Empresa' del navbar de retail [REQ-UI-17]**) en `.specs/requirements/SPEC-010-interfaz-diseno-ux.md`.
+  - `SPEC-011`: Mesa de Soporte, Reclamos y Solicitudes de Ayuda (contacto celular/correo, código de ticket y asignación a agentes) en `.specs/requirements/SPEC-011-soporte-reclamos-ayuda.md`.
+  - `SPEC-012`: Control Estricto de Empleados, Separación de Funciones (Ventas: productos; Soporte: reclamos; Operaciones: envíos/distribución), Asignación de Roles Múltiples por Admin, Conmutador de Función Activa sin mezcla y **desacoplamiento total de la interfaz corporativa vs. tienda de clientes [REQ-EMP-08 a REQ-EMP-10]** en `.specs/requirements/SPEC-012-empleados-roles-conmutador-funciones.md`.
+  - `SPEC-013`: Portal Corporativo Modular (separación de `/admin` en páginas/rutas individuales, menú de navegación lateral dinámico según la función activa del empleado, módulo enfocado exclusivamente en empleados/personal corporativo, excluyendo a los clientes [REQ-ADM-10], y alineación estandarizada con ancho uniforme para botones de la columna Acciones [REQ-ADM-14]) en `.specs/requirements/SPEC-013-admin-portal-modular-gestion-personal.md`.
+  - `SPEC-014`: Módulo de Catálogo/Vendedor (autorización explícita para que el Vendedor registre productos, selector de subida de imágenes locales con preview en miniatura y validación de formatos, **soporte de múltiples imágenes por link o local [REQ-PROD-08], variantes de especificaciones [REQ-PROD-09] y auto-scroll suave al área de formulario al editar producto [REQ-PROD-10]**) en `.specs/requirements/SPEC-014-productos-vendedor-subida-imagenes.md`.
+  - `SPEC-015`: Moneda Oficial Bolivianos (Bs. / BOB), Categoría Accesorios y Dashboard Analítico Avanzado (gráfico con selector Día, Mes y Año para Ventas, Ingresos y Demanda; e indicadores de Top Productos y Demanda por Categoría) en `.specs/requirements/SPEC-015-moneda-bolivianos-accesorios-dashboard-analitico.md`.
+  - `SPEC-016`: Comparador con botón de agregar al carrito, Módulo corporativo de Comunicados para empleados, Ajustes de Empresa (Proveedores con nombre/dirección/teléfono/correo y Sucursales físicas) y Retiro en Tienda en Checkout con descuentos escalonados configurables (7% >= 500 Bs, 5% < 500 Bs) en `.specs/requirements/SPEC-016-comparador-comunicados-ajustes-retiro-tienda.md`.
+  - `SPEC-017`: Migración de Base de Datos a Supabase (PostgreSQL) y Sincronización en Tiempo Real en el Cliente y Portal Corporativo (`REQ-SUP-01` a `REQ-SUP-08`) en `.specs/requirements/SPEC-017-migracion-supabase-tiempo-real.md`.
+  - `SPEC-018`: Reducción y Optimización de Calidad de Imágenes en Subidas (Fix), Subida de Evidencias Fotográficas en cada Fase por Operador (`operaciones`) con soporte mobile (cámara en vivo / galería), Notas Adicionales en cada punto del proceso, Historial Inmutable y Consulta Detallada con visor de imágenes o estado explícito 'Sin imágenes' para Cliente (`/seguimiento`) y Soporte (`/admin/soporte`) (`REQ-IMG-01` a `REQ-IMG-02`, `REQ-OPR-01` a `REQ-OPR-05`, `REQ-HIS-01` a `REQ-HIS-02`, `REQ-VIS-01` a `REQ-VIS-04`) en `.specs/requirements/SPEC-018-optimizacion-imagenes-evidencias-distribucion.md`.
+  - `SPEC-019`: Sistema Integral de Notificaciones por Correo Electrónico: Reseteo de contraseña exclusivo clientes con código temporal numérico de 6 dígitos con expiración de 15 minutos, Comprobante oficial de compra en HTML corporativo, Alertas automáticas de envío restringidas estrictamente a `EN_CAMINO` y `ENTREGADO`, y Notificación de resolución de tickets de soporte con notas del agente (`REQ-EML-01` a `REQ-EML-07`) en `.specs/requirements/SPEC-019-notificaciones-correo-electronico.md`.
+  - `SPEC-020`: Adaptabilidad Móvil y Menús Ocultos en Desplegables para Teléfonos (Mobile Responsive Navigation): Ocultamiento de barra de navegación fija en pantallas <= 767px, botón desplegable / hamburguesa accesible, panel desplegable interactivo con cierre automático y al hacer clic exterior, y menú desplegable select/acordeón en portal corporativo (`REQ-MOB-01` a `REQ-MOB-05`) en `.specs/requirements/SPEC-020-navegacion-movil-menus-desplegables.md`.
+  - `SPEC-021`: Rediseño Interactivo y Minimalista Moderno de la Landing Page: Estilo Retail Minimalista Claro (`#F8FAFC`), Selector de Presets de Setup en el Hero con tarjeta dinámica del componente insignia, Simulador interactivo de presupuesto en Bs. en 3 pasos con slider y sugerencias automáticas de hardware (`REQ-LND-01` a `REQ-LND-06`) en `.specs/requirements/SPEC-021-landing-page-rediseño-interactivo.md`.
+  - `SPEC-022`: Simulador "Arma tu Setup" con Productos Reales de la Tienda, Botón de Adición Directa de todo el Setup al Carrito con apertura de Drawer, y Tarjeta Insignia del Hero (`landing-feature-card`) con Fotografía Real de Producto y Fallback a Icono Temático (`REQ-SET-01` a `REQ-SET-04`) en `.specs/requirements/SPEC-022-simulador-productos-reales-carrito-imagenes.md`.
+- Tablero general de tareas [`todo.md`](file:///home/crismar/University/sis324/BytePro/todo.md) totalmente al día.
+- **Fix de Navegación y Pantallas en Blanco en `/admin/*`:**
+  - Diagnóstico: Se detectó `ReferenceError` (TDZ) en `AdminProductosView.vue` (`crearVariante` accedía a `nuevoProd` antes de su inicialización) y falta de componente asignado en la subruta base `{ path: '', name: 'admin' }` en `router/index.js`.
+  - Corrección: Implementada por `implementador` y auditada por `revisor` con 5 nuevas pruebas unitarias/de integración (`16/16` suites pasando al 100%, 122/122 pruebas OK).
+- **Fix de Desbordamiento de Imágenes en `/carrito`:**
+  - Diagnóstico: `.cart-thumb` no tenía `overflow: hidden;` ni regla `.cart-thumb img` (`width: 100%; height: 100%; object-fit: cover;`), provocando desbordamiento de imágenes de productos.
+  - Corrección: Implementada por `implementador` en `styles.css` y `CartView.vue`, auditada y validada por `revisor` (`16/16` suites pasando al 100%).
+- **Fix de Desbordamiento de Imágenes en Detalle de Producto (`/producto/:slug`):**
+  - Diagnóstico: `.detail-main-image` y `.thumb` no tenían `overflow: hidden;` ni reglas explícitas para `.detail-main-image img` y `.thumb img` (`width: 100%; height: 100%; object-fit: contain;`), provocando desbordamiento de imágenes de alta resolución.
+  - Corrección: Implementada por `implementador` en `styles.css` y `ProductDetailView.vue` (scoped), auditada por `revisor` (`17/17` suites aprobadas al 100%).
+- **Cierre de jornada (2026-11-07 22:57):**
+  - Todas las 9 especificaciones EARS (`SPEC-001` a `SPEC-009`) quedaron redactadas, aprobadas y entregadas a `implementador` y `revisor`.
+  - Persistencia total en SQLite local consolidada.
+  - Listo para continuar mañana con nuevas especificaciones funcionales o ajustes según el avance de los otros agentes.

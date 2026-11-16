@@ -14,6 +14,10 @@ const {
   Kardex,
   Despacho,
   Direccion,
+  Comunicado,
+  Proveedor,
+  Sucursal,
+  ConfiguracionEmpresa,
 } = require('../models');
 const { hashPassword } = require('../utils/hash');
 const { slugify } = require('../utils/sanitize');
@@ -110,6 +114,23 @@ const CATEGORIAS = [
       { clave: 'tipo', etiqueta: 'Tipo', tipo: 'select', opciones: ['Aire', 'Líquida AIO'], requerido: true },
       { clave: 'tdp', etiqueta: 'TDP soportado', tipo: 'text', requerido: false },
       { clave: 'tamaño', etiqueta: 'Tamaño', tipo: 'text', requerido: false },
+    ],
+  },
+  {
+    nombre: 'Accesorios',
+    slug: 'accesorios',
+    descripcion: 'Periféricos, cables y accesorios para tu equipo',
+    orden: 9,
+    atributos: [
+      {
+        clave: 'tipo',
+        etiqueta: 'Tipo',
+        tipo: 'select',
+        opciones: ['Teclado', 'Mouse', 'Audífonos', 'Cable', 'Adaptador', 'Otro'],
+        requerido: false,
+      },
+      { clave: 'conexion', etiqueta: 'Conexión', tipo: 'text', requerido: false },
+      { clave: 'color', etiqueta: 'Color', tipo: 'text', requerido: false },
     ],
   },
 ];
@@ -368,6 +389,39 @@ const PRODUCTOS = [
     specs: { tipo: 'Líquida AIO', tdp: '280W', tamaño: '240 mm' },
     variantes: [{ nombre: 'Estándar', atributos: {}, cantidad: 6 }],
   },
+  {
+    cat: 'accesorios',
+    nombre: 'Teclado Mecánico Redragon K552',
+    marca: 'Redragon',
+    modelo: 'K552 Kumara',
+    precioCompra: 28,
+    precioVenta: 39.99,
+    garantiaMeses: 12,
+    specs: { tipo: 'Teclado', conexion: 'USB', color: 'Negro' },
+    variantes: [{ nombre: 'Estándar', atributos: {}, cantidad: 18 }],
+  },
+  {
+    cat: 'accesorios',
+    nombre: 'Mouse Logitech G502 Hero',
+    marca: 'Logitech',
+    modelo: 'G502 Hero',
+    precioCompra: 35,
+    precioVenta: 49.99,
+    garantiaMeses: 24,
+    specs: { tipo: 'Mouse', conexion: 'USB', color: 'Negro' },
+    variantes: [{ nombre: 'Estándar', atributos: {}, cantidad: 22 }],
+  },
+  {
+    cat: 'accesorios',
+    nombre: 'Audífonos HyperX Cloud II',
+    marca: 'HyperX',
+    modelo: 'Cloud II',
+    precioCompra: 55,
+    precioVenta: 79.99,
+    garantiaMeses: 24,
+    specs: { tipo: 'Audífonos', conexion: 'USB', color: 'Rojo' },
+    variantes: [{ nombre: 'Estándar', atributos: {}, cantidad: 10 }],
+  },
 ];
 
 async function crearUsuario({ username, email, password, nombre, rol, extra }) {
@@ -401,7 +455,10 @@ async function main() {
   const categorias = {};
   for (const data of CATEGORIAS) {
     // eslint-disable-next-line no-await-in-loop
-    const categoria = await Categoria.create(data);
+    const [categoria] = await Categoria.findOrCreate({
+      where: { slug: data.slug },
+      defaults: data,
+    });
     categorias[data.slug] = categoria;
   }
   // eslint-disable-next-line no-console
@@ -653,6 +710,77 @@ async function main() {
       });
     }
   }
+
+  await ConfiguracionEmpresa.findOrCreate({
+    where: { id: 1 },
+    defaults: {
+      descuentoRetiroAlto: 7,
+      descuentoRetiroBajo: 5,
+      umbralDescuentoRetiro: 500,
+      moneda: 'BOB',
+    },
+  });
+
+  await Proveedor.bulkCreate([
+    {
+      nombre: 'TecnoImport Bolivia S.R.L.',
+      direccion: 'Av. Arce #1234, Zona Central, La Paz',
+      telefono: '72011223',
+      correo: 'ventas@tecnoimport.bo',
+      activo: true,
+    },
+    {
+      nombre: 'Hardware Global S.A.',
+      direccion: 'Calle Comercio #456, Cochabamba',
+      telefono: '73044556',
+      correo: 'contacto@hardwareglobal.bo',
+      activo: true,
+    },
+  ]);
+
+  await Sucursal.bulkCreate([
+    {
+      nombre: 'BytePro La Paz Centro',
+      ciudad: 'La Paz',
+      direccion: 'Av. Mariscal Santa Cruz #1000, La Paz',
+      telefono: '70011223',
+      horarios: 'Lun a Vie 09:00-19:00 · Sáb 09:00-13:00',
+      activa: true,
+    },
+    {
+      nombre: 'BytePro Cochabamba',
+      ciudad: 'Cochabamba',
+      direccion: 'Av. Heroínas #250, Cochabamba',
+      telefono: '70044556',
+      horarios: 'Lun a Vie 09:30-19:30 · Sáb 09:00-14:00',
+      activa: true,
+    },
+    {
+      nombre: 'BytePro Santa Cruz',
+      ciudad: 'Santa Cruz',
+      direccion: 'Av. Monseñor Rivero #300, Santa Cruz',
+      telefono: '70077889',
+      horarios: 'Lun a Sáb 09:00-20:00',
+      activa: true,
+    },
+  ]);
+
+  await Comunicado.bulkCreate([
+    {
+      titulo: 'Bienvenidos al Portal Corporativo BytePro',
+      contenido:
+        'A partir de hoy todos los empleados pueden consultar el tablón oficial de comunicados internos desde /admin/comunicados.',
+      prioridad: 'Informativo',
+      autorId: admin.id,
+    },
+    {
+      titulo: 'Nuevo beneficio: retiro en tienda con descuento',
+      contenido:
+        'Los clientes que elijan retiro en tienda obtendrán 7% de descuento en compras de Bs. 500 o más, y 5% en compras menores.',
+      prioridad: 'Importante',
+      autorId: admin.id,
+    },
+  ]);
 
   // eslint-disable-next-line no-console
   console.log('[seed] usuarios demo:');

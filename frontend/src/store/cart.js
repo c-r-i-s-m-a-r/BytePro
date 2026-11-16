@@ -42,17 +42,21 @@ export const useCartStore = defineStore('cart', {
     async fetchCart() {
       return this.fetch();
     },
-    async add(varianteId, cantidad = 1) {
+    async add(varianteId, cantidad = 1, opciones = {}) {
       const ui = useUiStore();
+      const silencioso = Boolean(opciones?.silencioso);
       this.loading = true;
       try {
         const { data } = await api.post('/carrito/items', { varianteId, cantidad });
         this.cart = data;
-        if (data.warning) ui.warning(data.warning);
-        else ui.success('Producto agregado al carrito');
+        if (data.warning) {
+          if (!silencioso) ui.warning(data.warning);
+        } else if (!silencioso) {
+          ui.success('Producto agregado al carrito');
+        }
         return data;
       } catch (err) {
-        ui.error(apiErrorMessage(err));
+        if (!silencioso) ui.error(apiErrorMessage(err));
         throw err;
       } finally {
         this.loading = false;

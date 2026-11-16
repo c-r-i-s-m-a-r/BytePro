@@ -1,0 +1,111 @@
+# Plan de Tareas del Proyecto (TODO)
+
+## 1. Especificaciones (.specs/)
+- [x] Módulo Seguridad: Autenticación, Registro y Control de Roles (EARS) - `.specs/requirements/SPEC-001-seguridad-autenticacion.md`
+- [x] Módulo E-commerce / Catálogo Base: Visualización y Búsqueda (EARS) - `.specs/requirements/SPEC-002-ecommerce-catalogo.md`
+- [x] Módulo E-commerce / Catálogo Avanzado: Filtros Técnicos, SKUs, Comparador y Reseñas (EARS) - `.specs/requirements/SPEC-003-ecommerce-catalogo-avanzado.md`
+- [x] Módulo Ventas / Carrito: Carrito de Compras, Estados Vacíos y Control de Sesión (EARS) - `.specs/requirements/SPEC-004-ventas-carrito-sesion.md`
+- [x] Módulo Cobros: Pasarela de Pago, Idempotencia y Transacciones (EARS) - `.specs/requirements/SPEC-005-cobros-pasarela-transacciones.md`
+- [x] Módulo Almacén: Inventario, Movimientos Kardex y Persistencia SQLite (EARS) - `.specs/requirements/SPEC-006-almacen-inventario-kardex.md`
+- [x] Módulo Distribución: Logística, Envíos y Seguimiento en Tiempo Real (EARS) - `.specs/requirements/SPEC-007-distribucion-envios-tracking.md`
+- [x] Módulo Clientes: Historial de Pedidos, Cancelaciones y Direcciones Guardadas (EARS) - `.specs/requirements/SPEC-008-clientes-pedidos-direcciones.md`
+- [x] Módulo Empresa: Dashboard Administrativo, KPIs y Alertas de Stock (EARS) - `.specs/requirements/SPEC-009-empresa-dashboard-metricas.md`
+- [x] Diseño e Interfaz UX Transversal (+14% escala, 3 tarjetas/fila, selects estilizados, botones redondeados/rojos y confirmación modal) (EARS) - `.specs/requirements/SPEC-010-interfaz-diseno-ux.md` y `.specs/development/requeriments.md`
+- [x] Módulo Soporte y Reclamos: Mesa de ayuda, tickets con contacto y toma de casos (EARS) - `.specs/requirements/SPEC-011-soporte-reclamos-ayuda.md`
+- [x] Módulo Empleados y Roles: Separación estricta (Ventas, Soporte, Operaciones), roles múltiples y conmutador de función activa (EARS) - `.specs/requirements/SPEC-012-empleados-roles-conmutador-funciones.md`
+- [x] Portal Corporativo Modular: Subpáginas independientes, menú dinámico por rol y CRUD de usuarios empleados (EARS) - `.specs/requirements/SPEC-013-admin-portal-modular-gestion-personal.md`
+- [x] Módulo Catálogo/Vendedor: Alta de productos por Vendedor y Subida de imágenes locales/URL con preview (EARS) - `.specs/requirements/SPEC-014-productos-vendedor-subida-imagenes.md`
+- [x] Módulo Moneda Nacional (Bs.), Categoría Accesorios y Dashboard Analítico con series Día/Mes/Año y Top Productos/Categorías (EARS) - `.specs/requirements/SPEC-015-moneda-bolivianos-accesorios-dashboard-analitico.md`
+- [x] Moneda Bolivianos (Bs.), Categoría Accesorios y Dashboard Analítico con Gráficos por Día/Mes/Año y Top Demanda (EARS) - `.specs/requirements/SPEC-015-moneda-bolivianos-accesorios-dashboard-analitico.md`
+- [x] Comparador con Compra Rápida, Comunicados de Empleados, Ajustes de Empresa (Proveedores y Sucursales) y Retiro en Tienda con Descuentos Escalonados (EARS) - `.specs/requirements/SPEC-016-comparador-comunicados-ajustes-retiro-tienda.md`
+- [x] Migración de Base de Datos a Supabase (PostgreSQL) y Sincronización en Tiempo Real en el Cliente y Portal Corporativo (EARS) - `.specs/requirements/SPEC-017-migracion-supabase-tiempo-real.md`
+- [x] Reducción de Calidad de Imágenes, Subida de Evidencias Fotográficas en Distribución e Historial Accesible para Clientes y Soporte (EARS) - `.specs/requirements/SPEC-018-optimizacion-imagenes-evidencias-distribucion.md`
+- [x] Ampliación SPEC-018: Soporte mobile (cámara en vivo / galería), notas adicionales en cada punto del proceso y detalle específico con notas y galería de imágenes o 'Sin imágenes' en historial para Cliente y Soporte (REQ-OPR-02, REQ-OPR-05, REQ-VIS-04) [A cargo de `implementador`]
+- [x] Sistema Integral de Notificaciones por Correo Electrónico: Reseteo de contraseña clientes con código temporal 6 dígitos y 15 min, comprobante de compra HTML, avisos de envío exclusivos en camino/entregado y resolución de reclamos (EARS) - `.specs/requirements/SPEC-019-notificaciones-correo-electronico.md`
+- [x] Adaptabilidad Móvil y Menús Ocultos en Desplegables para Teléfonos (Mobile Responsive Navigation) (EARS) - `.specs/requirements/SPEC-020-navegacion-movil-menus-desplegables.md`
+- [x] Rediseño Interactivo y Minimalista Moderno de la Landing Page: Selector de Presets en Hero y Simulador de Presupuesto en Bs. (EARS) - `.specs/requirements/SPEC-021-landing-page-rediseño-interactivo.md`
+- [x] Simulador "Arma tu Setup" con Productos Reales, Adición Directa al Carrito y Fotos Reales en Tarjeta Insignia con Fallback Visual (EARS) - `.specs/requirements/SPEC-022-simulador-productos-reales-carrito-imagenes.md`
+
+## 2. Implementación (backend / frontend) - [A cargo de `implementador`]
+- [x] Base de datos, modelos y migraciones iniciales (SQLite + Sequelize)
+- [x] Seed de categorías de hardware, productos, variantes, inventario y usuarios
+- [x] Seguridad: endpoints de registro, login, middleware auth/RBAC (SPEC-001)
+- [x] E-commerce: API y vistas de Catálogo, filtros y detalle de producto (SPEC-002)
+- [x] E-commerce avanzado: atributos dinámicos, variantes/SKU, comparador y reseñas (SPEC-003)
+- [x] Frontend Vue 3: catálogo, detalle, carrito, comparador, login/registro y panel staff
+- [x] Código backend/frontend entregado para validación del `revisor` (sin pruebas a cargo del `implementador`)
+- [x] Carrito y transición a checkout (SPEC-004, módulo Ventas)
+- [x] Pasarela de pago, validación e idempotencia según SPEC-005 (módulo Cobros)
+- [x] Movimientos de almacén, Kardex y bloqueo 10 min según SPEC-006 (módulo Almacén)
+- [x] Distribución, Tracking y Guías TRK (SPEC-007)
+- [x] Mis Pedidos, Cancelación con reintegro y Direcciones (SPEC-008)
+- [x] Dashboard Empresa, KPIs y Alertas de Stock bajo (SPEC-009)
+- [x] Diseño e Interfaz UX (+14% escala, 3 tarjetas/fila, selects estilizados, botones redondeados/rojos y modal de confirmación) (SPEC-010)
+- [x] Ampliación de barra lateral de filtros en +12% para evitar corte de texto en categorías (REQ-UI-10 en SPEC-010)
+- [x] Ampliación ligera del ancho de contenido principal `main` (--max-width a ~1580px - 1600px) (REQ-UI-11 en SPEC-010)
+- [x] Actualización de diseño UI Full-Width 100% fluido en header y main (REQ-UI-11 Full-Width)
+- [x] Soporte, Reclamos y Solicitudes de Ayuda (SPEC-011)
+- [x] Control de Empleados, Roles Múltiples, Conmutador y Desacoplamiento (SPEC-012)
+- [x] Portal Corporativo Modular, Subpáginas /admin/* y CRUD de Personal (SPEC-013)
+- [x] Alineación uniforme en cuadrícula de botones de acciones en tablas administrativas (REQ-ADM-14 en SPEC-013)
+- [x] Alta de productos por Vendedor y Subida de imágenes locales/URL con preview (SPEC-014)
+- [x] Celda limpia con guion "-" en pedidos cancelados en panel /admin/pedidos (REQ-ADM-15)
+- [x] Pop-up de ConfirmModal sobrio y limpio sin cápsulas indicativas redundantes (REQ-UI-08)
+- [x] Política estricta de rate limiting y bloqueo por intentos fallidos de contraseña en backend (REQ-SEC-10 y REQ-SEC-11)
+- [x] Landing Page de BytePro creada según prototipo .style_design/11. Landing page.png (Frontend, no requiere tests)
+- [x] Moneda oficial Bolivianos (Bs. / BOB) en backend, models y frontend formatPrice (REQ-MON-01 en SPEC-015)
+- [x] Categoría permanente Accesorios (slug: 'accesorios') en SQLite y catálogo (REQ-CAT-15 en SPEC-015)
+- [x] Gráfico analítico de Ventas, Ingresos y Demanda con conmutador Día/Mes/Año en Dashboard (REQ-DSH-01 y REQ-DSH-02 en SPEC-015)
+- [x] Indicadores de Top Productos y Demanda por Categoría con estado limpio sin ventas (REQ-DSH-03 y REQ-DSH-04 en SPEC-015)
+- [x] Side drawer deslizable de carrito con total en Bs y acceso a /carrito (REQ-UI-12 en SPEC-010)
+- [x] Botón directo de compra en ProductCard (REQ-UI-13 en SPEC-010)
+- [x] Uso de iconos SVG locales en frontend/src/assets/icons/ mediante AppIcon.vue (REQ-UI-14 en SPEC-010)
+- [x] Adición rápida en Comparador, Comunicados internos en /admin/comunicados, Ajustes con Proveedores y Sucursales en SQLite, y Retiro en tienda con descuentos escalonados 7% y 5% (SPEC-016)
+- [x] Ajustes de navegación: Retiro de "Empresa" en navbar retail, nuevos iconos (transfer, help, cube), redirección logo BytePro a catálogo Todos si está logueado, /seguimiento exige sesión obligatoria y menú activo coloreado (REQ-NAV-01 a REQ-NAV-05)
+- [x] Ajustes de Landing Page: 4 categorías destacadas (Procesadores, Gráficas, RAM, Accesorios), iconos por defecto con revelación de fondo en hover, y franja de beneficios con micro-interacciones (FIX LANDING)
+- [x] Integración uniforme de logo oficial icon-bytepro.png en cabecera principal, landing page, pie de página y login (A cargo de `implementador`)
+- [x] Edición avanzada de productos en SPEC-014: Variantes de especificaciones con nombre, SKU, precio y stock (REQ-PROD-09), galería de múltiples imágenes con miniaturas y eliminación (REQ-PROD-08), y auto-scroll suave hacia el formulario al pulsar Editar (REQ-PROD-10) [A cargo de `implementador`]
+- [x] Corrección de pantallas en blanco en /admin: eliminación de TDZ en crearVariante() de AdminProductosView.vue, asignación de componente AdminResumenView a ruta hija vacía de /admin en router/index.js, y redirección contextual por función activa en AppHeader.vue (A cargo de `implementador`)
+- [x] Corrección de desbordamiento de imágenes en CartView.vue: adición de overflow: hidden en .cart-thumb y regla .cart-thumb img con width: 100%, height: 100%, object-fit: cover (A cargo de `implementador`)
+- [x] Bootstrap automático limpio para despliegue en Render: creación de backend/src/bootstrap.js con admin inicial, 9 categorías oficiales y configuración de empresa, integración en server.js, soporte estático full-stack en app.js y CORS flexible en env.js (A cargo de `implementador`)
+- [x] Corrección de desbordamiento de imágenes en ProductDetailView.vue: adición de overflow: hidden en .detail-main-image y .thumb, y reglas img con object-fit: contain (A cargo de `implementador`)
+- [x] Migración a Supabase (PostgreSQL) y sincronización en tiempo real en cliente y admin (SPEC-017: `pg`, `pg-hstore`, `@supabase/supabase-js`, `supabase_realtime.sql`, `realtimeHub.js`, `realtime.js` y suscripciones en vistas) (A cargo de `implementador`)
+- [x] Optimización/compresión de imágenes en cliente (Canvas 1280 px, JPEG 0.8) y validación backend de evidencias ≤5 MB, subida de fotos por fase para Operador en `/admin/pedidos`, historial con galería/lightbox en `/seguimiento` y acceso al historial de despacho desde `/admin/soporte` (SPEC-018, REQ-IMG-01, REQ-IMG-02, REQ-OPR-01 a REQ-OPR-04, REQ-HIS-01, REQ-HIS-02, REQ-VIS-01 a REQ-VIS-03) [A cargo de `implementador`]
+- [x] Fix: Mensaje unificado "Usuario o contraseña incorrecta" tanto si la cuenta no existe como si la contraseña es errónea en cliente y empresa (REQ-SEC-06: `authService.login`, `authController.loginEmpresa`, `LoginView.vue` y `CompanyLoginView.vue`) [A cargo de `implementador`]
+- [x] Sistema Integral de Notificaciones por Correo Electrónico: `nodemailer`, reseteo con código 6 dígitos/15 min en clientes, comprobante HTML, avisos solo EN_CAMINO/ENTREGADO y resolución de reclamos (SPEC-019) [A cargo de `implementador`]
+- [x] Adaptabilidad móvil: menú hamburguesa con drawer, cierre por enlace/backdrop/Escape y selector desplegable de módulos corporativos (SPEC-020, REQ-MOB-01 a REQ-MOB-05) [A cargo de `implementador`]
+- [x] Rediseño de la Landing Page: hero con 3 presets interactivos, simulador de presupuesto en 3 pasos con slider Bs. 2.500–25.000, categorías con micro-animaciones y franja de 4 beneficios (SPEC-021, REQ-LND-01 a REQ-LND-06) [A cargo de `implementador`]
+- [x] Simulador con productos reales del catálogo, botón "Agregar setup al carrito" con apertura del drawer y foto real del producto en la tarjeta insignia con fallback temático (SPEC-022, REQ-SET-01 a REQ-SET-04) [A cargo de `implementador`]
+
+## 3. Pruebas y Revisión - [A cargo exclusivo de `revisor`]
+- [x] Verificación de cumplimiento de specs EARS (SPEC-001 al SPEC-016 y requerimientos de navegación)
+- [x] Pruebas unitarias de servicios y utilidades (hash, JWT, sanitización, validadores) en `.tmp/` (4/4 OK)
+- [x] Pruebas de integración y endpoints (Auth, RBAC, Catálogo, Variantes, Comparador, Carrito) en `.tmp/` (18/18 OK)
+- [x] Pruebas de Cobros, Pasarela y Transacciones (SPEC-005) en `.tmp/` (8/8 OK)
+- [x] Ajuste de verificación de bloqueo temporal a 10 minutos (REQ-COB-06 y REQ-ALM-04) (OK)
+- [x] Verificación de persistencia directa de usuarios y roles en SQLite local (`bytepro.sqlite`) (OK)
+- [x] Pruebas y validación EARS de Almacén, Kardex y Stock negativo (SPEC-006) en `.tmp/` (8/8 OK)
+- [x] Pruebas y validación EARS de Distribución y Tracking (SPEC-007) en `.tmp/` (OK en `distribucion_clientes_admin_ears.test.js`)
+- [x] Pruebas y validación EARS de Clientes, Mis Pedidos y Cancelaciones (SPEC-008) en `.tmp/` (OK en `distribucion_clientes_admin_ears.test.js`)
+- [x] Pruebas y validación EARS de Dashboard Empresa y Métricas (SPEC-009) en `.tmp/` (OK en `distribucion_clientes_admin_ears.test.js`)
+- [x] Pruebas y validación EARS de Diseño e Interfaz UX (SPEC-010, REQ-UI-10 a REQ-UI-14, REQ-UI-18 y REQ-UI-19: escala, grilla 3 col, selects, botones pill/danger, ConfirmModal sobrio, barra lateral ampliada, full-width 100%, side drawer, botón rápido en tarjetas, iconografía SVG, contención de miniaturas en /carrito y contención de imagen principal y miniaturas en ProductDetailView.vue) y build de frontend Vue 3 (13/13 OK en `ui_ux_ears.test.js`)
+- [x] Pruebas y validación EARS de Soporte y Reclamos (SPEC-011) en `.tmp/` (OK en `soporte_empleados_ears.test.js`)
+- [x] Pruebas y validación EARS de Control de Empleados, Roles Múltiples y Conmutador (SPEC-012) en `.tmp/` (OK en `soporte_empleados_ears.test.js`)
+- [x] Pruebas y validación EARS de Portal Corporativo Modular, CRUD de Personal y Alineación de Acciones (SPEC-013 y REQ-ADM-14) en `.tmp/` (8/8 OK en `admin_modular_personal_ears.test.js`)
+- [x] Pruebas y validación EARS de Productos por Vendedor y Carga de Imágenes (SPEC-014, REQ-PROD-01 a REQ-PROD-07) en `.tmp/` (7/7 OK en `productos_imagenes_ears.test.js`)
+- [x] Pruebas y validación de UI y Logística: Celda vacía/guión en pedidos cancelados (REQ-ADM-15) y diálogo modal sobrio sin cápsulas (REQ-UI-08) (OK en `distribucion_clientes_admin_ears.test.js` y `ui_ux_ears.test.js`)
+- [x] Pruebas y validación de Seguridad: Rate limiting y bloqueo progresivo por intentos fallidos de contraseña para clientes y empleados no-admin, con exención a admin (SPEC-001 REQ-SEC-10 y REQ-SEC-11) en `.tmp/` (4/4 OK en `seguridad_bloqueo_ears.test.js`)
+- [x] Pruebas y validación EARS de Moneda Bolivianos, Accesorios y Dashboard Analítico (SPEC-015, REQ-MON-01, REQ-CAT-15, REQ-DSH-01 a REQ-DSH-04) en `.tmp/` (5/5 OK en `dashboard_analitico_moneda_accesorios_ears.test.js`)
+- [x] Pruebas y validación EARS de Comparador, Comunicados, Ajustes y Retiro en Tienda (SPEC-016, REQ-CMP-01, REQ-COM-01 a REQ-COM-03, REQ-AJU-01 a REQ-AJU-03, REQ-RET-01 a REQ-RET-04) en `.tmp/tests/spec016_ears.test.js` (10/10 OK)
+- [x] Pruebas y validación EARS de Navbar Retail, Iconos, Redirección de Logo y Seguimiento Autenticado (REQ-NAV-01 a REQ-NAV-05) en `.tmp/tests/navbar_tracking_ux.test.js` (5/5 OK)
+- [x] Pruebas y validación de Logo Oficial icon-bytepro.png en cabeceras y vistas (REQ-LOG-01 a REQ-LOG-05) en `.tmp/tests/logo_oficial.test.js` (5/5 OK)
+- [x] Pruebas y validación EARS de Multimedia, Variantes y Auto-scroll al Editar en SPEC-014 (REQ-PROD-08, REQ-PROD-09, REQ-PROD-10) en `.tmp/tests/spec014_multimedia_variantes_scroll.test.js` (5/5 OK)
+- [x] Pruebas y validación de resolución de pantallas en blanco en /admin: Subruta raíz con AdminResumenView, ausencia de ReferenceError (TDZ) en AdminProductosView y redirección contextual de rol en AppHeader (FIX-ADM-01 a FIX-ADM-05) en `.tmp/tests/admin_pantallas_blanco_fix.test.js` (5/5 OK)
+- [x] Pruebas y validación de Bootstrap Automático Limpio para Render: Admin inicial (admin@bytepro.com / Admin1234), 9 categorías base, configuración BOB, catálogo y operaciones en blanco (0 productos, 0 clientes, 0 ventas), idempotencia y soporte full-stack/CORS (BOOT-01 a BOOT-06) en `.tmp/tests/render_bootstrap_clean.test.js` (6/6 OK)
+- [x] Pruebas y validación EARS de Migración a Supabase (PostgreSQL) y Sincronización en Tiempo Real (SPEC-017, REQ-SUP-01 a REQ-SUP-08: soporte PostgreSQL/SSL, fallback SQLite, ensureColumns sin PRAGMA, supabase_realtime.sql, realtimeHub.js, SSE /api/realtime/stream, @supabase/supabase-js, debounce 150ms, refreshSilently y suscripciones en App.vue, 5 vistas de cliente y 8 subvistas de /admin/*) en `.tmp/tests/supabase_realtime_migration.test.js` (6/6 OK)
+- [x] Pruebas y validación EARS de Optimización de Imágenes, Evidencias en Distribución e Historial (SPEC-018, REQ-IMG-01 a REQ-IMG-02, REQ-OPR-01 a REQ-OPR-04, REQ-HIS-01 a REQ-HIS-02, REQ-VIS-01 a REQ-VIS-03: compresión canvas 1280px, validación backend 5MB, fotos por etapa en operador, RBAC 403, historial inmutable, lightbox en tracking y soporte) en `.tmp/tests/spec018_imagenes_evidencias_distribucion.test.js` (5/5 OK)
+- [x] Pruebas y validación de Seguridad FIX REQ-SEC-06: Mensaje unificado 'Usuario o contraseña incorrecta' ante cuenta inexistente, contraseña incorrecta o cliente en login corporativo en backend y frontend (18/18 OK en `ears_integration.test.js` y 4/4 OK en `seguridad_bloqueo_ears.test.js`)
+- [x] Pruebas y validación EARS de Sistema Integral de Notificaciones por Correo Electrónico (SPEC-019, REQ-EML-01 a REQ-EML-07: recuperación de contraseña con código temporal de 6 dígitos y hash SHA-256 exclusivo para clientes, vista /recuperar-contrasena y enlace en LoginView, comprobante HTML con ítems/subtotales/guía TRK en enviarRecibo, filtro selectivo EN_CAMINO/ENTREGADO en enviarActualizacionEnvio, envío de resolución de reclamo y transporte dual nodemailer/simulación resiliente) en `.tmp/tests/spec019_emails_notificaciones.test.js` (6/6 OK)
+- [x] Pruebas y validación EARS de Adaptabilidad Móvil y Menús Desplegables (SPEC-020, REQ-MOB-01 a REQ-MOB-05: @media max-width 767px ocultando .header-actions y .admin-sidebar, botón hamburguesa .mobile-menu-toggle con aria-expanded, panel .mobile-nav-panel, cierre al navegar/backdrop/Escape, selector .admin-mobile-nav en AdminView y área táctil min-height 44px) en `.tmp/tests/spec020_navegacion_movil_desplegables.test.js` (5/5 OK)
+- [x] Auditoría de seguridad y restricciones (dependencias locales, MVC, sin impacto al SO)
+- [x] Validación de interfaz y compilación en frontend Vue 3 (build exitoso en 1.89s, 21/21 suites pasando al 100%, 152/152 tests OK)
