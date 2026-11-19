@@ -78,6 +78,13 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/cuenta',
+    alias: ['/perfil', '/mi-cuenta'],
+    name: 'account',
+    component: () => import('../views/AccountView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/cuenta/pedidos',
     name: 'account-orders',
     component: () => import('../views/OrdersView.vue'),

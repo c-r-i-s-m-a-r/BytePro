@@ -216,6 +216,8 @@ sequelize.addHook('afterBulkSync', async () => {
     await ensureColumns('usuarios', {
       roles: ' TEXT',
       funcion_activa: ' VARCHAR(40)',
+      foto_perfil: ' TEXT',
+      tarjetas_guardadas: ' TEXT',
       intentos_fallidos: ' INTEGER DEFAULT 0',
       bloqueado_hasta: ' DATETIME',
       reset_password_token: ' VARCHAR(128)',

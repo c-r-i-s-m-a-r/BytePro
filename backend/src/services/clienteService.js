@@ -463,6 +463,355 @@ async function eliminarDireccion({ usuario, direccionId }) {
   return { id: Number(direccionId), eliminada: true };
 }
 
+async function listarReclamos({ usuario }) {
+  const { Reclamo } = require('../models');
+  const reclamos = await Reclamo.findAll({
+    where: { usuarioId: usuario.id },
+    order: [['createdAt', 'DESC']],
+  });
+  return reclamos.map((r) => ({
+    id: r.id,
+    codigo: r.codigo,
+    tipo: r.tipoSolicitud,
+    estado: r.estado,
+    fechaCreacion: r.createdAt,
+    descripcion: r.descripcion,
+    solucion: r.solucion,
+    empleadoAsignadoId: r.empleadoAsignadoId,
+  }));
+}
+
+function obtenerListaTarjetasDesdeUsuario(user) {
+  try {
+    if (user && user.tarjetasGuardadas) {
+      const parsed = JSON.parse(user.tarjetasGuardadas);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    // ignore parse error
+  }
+  return [];
+}
+
+async function listarTarjetas({ usuario }) {
+  const { Usuario } = require('../models');
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+  const tarjetas = obtenerListaTarjetasDesdeUsuario(user);
+  return tarjetas.map((t, index) => ({
+    id: t.id || index + 1,
+    ultimos4: t.ultimos4,
+    marca: t.marca,
+    titular: t.titular,
+    expiraMes: t.expiraMes,
+    expiraAnio: t.expiraAnio,
+    createdAt: t.createdAt || null,
+  }));
+}
+
+async function agregarTarjeta({ usuario, payload = {} }) {
+  const { Usuario } = require('../models');
+  const { ultimos4, marca, titular, expiraMes, expiraAnio } = payload;
+  if (!ultimos4 || !marca || !titular || !expiraMes || !expiraAnio) {
+    throw new AppError('Todos los campos de la tarjeta son requeridos', 400);
+  }
+  const digits = String(ultimos4).replace(/\D/g, '');
+  if (digits.length !== 4) {
+    throw new AppError('Los últimos 4 dígitos de la tarjeta son inválidos', 400);
+  }
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+
+  const tarjetas = obtenerListaTarjetasDesdeUsuario(user);
+  const nueva = {
+    id: Date.now(),
+    ultimos4: digits,
+    marca: String(marca).trim().slice(0, 40),
+    titular: String(titular).trim().slice(0, 120),
+    expiraMes: String(expiraMes).padStart(2, '0').slice(-2),
+    expiraAnio: String(expiraAnio).slice(-2),
+    createdAt: new Date().toISOString(),
+  };
+  tarjetas.push(nueva);
+  await user.update({ tarjetasGuardadas: JSON.stringify(tarjetas) });
+  return { success: true, tarjeta: nueva };
+}
+
+async function eliminarTarjeta({ usuario, tarjetaId }) {
+  const { Usuario } = require('../models');
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+  const tarjetas = obtenerListaTarjetasDesdeUsuario(user);
+  const id = Number(tarjetaId);
+  const filtradas = tarjetas.filter((t) => Number(t.id) !== id);
+  if (filtradas.length === tarjetas.length) {
+    throw new AppError('Tarjeta no encontrada', 404);
+  }
+  await user.update({ tarjetasGuardadas: JSON.stringify(filtradas) });
+  return { success: true, message: 'Tarjeta eliminada correctamente' };
+}
+
+async function listarReclamos({ usuario }) {
+  const { Reclamo } = require('../models');
+  const reclamos = await Reclamo.findAll({
+    where: { usuarioId: usuario.id },
+    order: [['createdAt', 'DESC']],
+  });
+  return reclamos.map((r) => ({
+    id: r.id,
+    codigo: r.codigo,
+    tipo: r.tipoSolicitud,
+    estado: r.estado,
+    fechaCreacion: r.createdAt,
+    descripcion: r.descripcion,
+    solucion: r.solucion,
+    empleadoAsignadoId: r.empleadoAsignadoId,
+  }));
+}
+
+function esEstadoPedidoEnCurso(estadoLogistico) {
+  const EN_CURSO = [
+    'PENDIENTE',
+    'EN_ESPERA_COMPROBACION',
+    'PEDIDO_CONFIRMADO',
+    'PREPARANDO_PEDIDO',
+    'EN_PREPARACION',
+    'EN_CAMINO',
+  ];
+  return EN_CURSO.includes(String(estadoLogistico || '').toUpperCase());
+}
+
+async function obtenerPerfil({ usuario }) {
+  const { Usuario, Direccion, Reclamo, Venta, VentaItem, Variante, Producto, Despacho } = require('../models');
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+
+  const [direcciones, reclamos, ventas] = await Promise.all([
+    Direccion.findAll({
+      where: { usuarioId: usuario.id },
+      order: [['predeterminada', 'DESC'], ['id', 'DESC']],
+    }),
+    Reclamo.findAll({
+      where: { usuarioId: usuario.id },
+      order: [['createdAt', 'DESC']],
+    }),
+    Venta.findAll({
+      where: { usuarioId: usuario.id },
+      include: [
+        { model: Despacho, as: 'despacho' },
+        {
+          model: VentaItem,
+          as: 'items',
+          include: [
+            {
+              model: Variante,
+              as: 'variante',
+              include: [{ model: Producto, as: 'producto' }],
+            },
+          ],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    }),
+  ]);
+
+  const pedidosEnCurso = [];
+  const historialPedidos = [];
+  for (const venta of ventas) {
+    const estadoLogistico = venta.despacho
+      ? distribucionService.normalizarEstadoLogistico(venta.despacho.estado)
+      : venta.estado === 'enviada'
+        ? 'EN_CAMINO'
+        : venta.estado === 'entregada'
+          ? 'ENTREGADO'
+          : venta.estado === 'cancelada' || venta.estado === 'CANCELADO'
+            ? 'CANCELADO'
+            : 'PEDIDO_CONFIRMADO';
+
+    const puedeCancelar = esCancelable(venta.estado, estadoLogistico);
+    const item = {
+      id: venta.id,
+      ventaId: venta.id,
+      numeroPedido: `PED-${String(venta.id).padStart(4, '0')}`,
+      fecha: venta.createdAt,
+      total: Number(venta.total),
+      estado: estadoLogistico,
+      estadoPago: venta.estado,
+      puedeCancelar,
+      codigoSeguimiento: venta.despacho ? venta.despacho.codigoSeguimiento : null,
+      items: (venta.items || []).map((i) => ({
+        varianteId: i.varianteId,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        subtotal: i.precioUnitario * i.cantidad,
+        producto: i.variante?.producto?.nombre,
+        imagen: i.variante?.imagenes?.[0] || i.variante?.producto?.imagenPrincipal,
+      })),
+    };
+
+    if (esEstadoPedidoEnCurso(estadoLogistico)) {
+      pedidosEnCurso.push(item);
+    } else {
+      historialPedidos.push(item);
+    }
+  }
+
+  const tarjetas = obtenerListaTarjetasDesdeUsuario(user);
+
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    nombre: user.nombre,
+    telefono: user.telefono,
+    fotoPerfil: user.fotoPerfil || null,
+    tarjetas,
+    direcciones: direcciones.map((d) => ({
+      id: d.id,
+      etiqueta: d.etiqueta,
+      nombreDestinatario: d.nombreDestinatario,
+      calle: d.calle,
+      ciudad: d.ciudad,
+      telefono: d.telefono,
+      referencias: d.referencias || null,
+      predeterminada: Boolean(d.predeterminada),
+    })),
+    reclamos: reclamos.map((r) => ({
+      id: r.id,
+      codigo: r.codigo,
+      tipo: r.tipoSolicitud,
+      estado: r.estado,
+      fechaCreacion: r.createdAt,
+      descripcion: r.descripcion,
+      solucion: r.solucion || null,
+      empleadoAsignadoId: r.empleadoAsignadoId || null,
+    })),
+    pedidos: pedidosEnCurso,
+    pedidosHistorial: historialPedidos,
+  };
+}
+
+async function actualizarPerfil({ usuario, payload = {} }) {
+  const { Usuario } = require('../models');
+  const { normalizarFoto } = require('../utils/imagePayload');
+
+  const updates = {};
+  if (payload.nombre !== undefined) {
+    const nombre = String(payload.nombre).trim().slice(0, 120);
+    if (!nombre) throw new AppError('El nombre es requerido', 400);
+    updates.nombre = nombre;
+  }
+  if (payload.telefono !== undefined) {
+    updates.telefono = String(payload.telefono).trim().slice(0, 40) || null;
+  }
+  if (payload.fotoPerfil !== undefined) {
+    try {
+      updates.fotoPerfil = normalizarFoto(payload.fotoPerfil);
+    } catch (err) {
+      throw new AppError('Formato o tamaño de imagen no admitido', 400);
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError('No se enviaron campos válidos para actualizar', 400);
+  }
+
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+  await user.update(updates);
+
+  return {
+    success: true,
+    message: 'Perfil actualizado correctamente',
+    perfil: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      nombre: user.nombre,
+      telefono: user.telefono,
+      fotoPerfil: user.fotoPerfil || null,
+    },
+  };
+}
+
+async function cambiarEmail({ usuario, payload = {} }) {
+  const { Usuario } = require('../models');
+  const bcrypt = require('bcryptjs');
+
+  const email = String(payload.email ?? payload.nuevoEmail ?? payload.correo ?? '').trim().toLowerCase();
+  const passwordActual = String(payload.passwordActual ?? payload.password ?? '').trim();
+
+  if (!email || !passwordActual) {
+    throw new AppError('Nuevo correo y contraseña actual son requeridos', 400);
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AppError('El correo electrónico ingresado no es válido', 400);
+  }
+
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+
+  const passwordValida = await bcrypt.compare(passwordActual, user.passwordHash);
+  if (!passwordValida) {
+    throw new AppError('La contraseña actual es incorrecta', 400);
+  }
+
+  if (email === String(user.email).toLowerCase()) {
+    throw new AppError('El nuevo correo debe ser diferente al actual', 400);
+  }
+
+  const duplicado = await Usuario.findOne({ where: { email } });
+  if (duplicado && duplicado.id !== user.id) {
+    throw new AppError('El correo electrónico ya está en uso', 400);
+  }
+
+  await user.update({ email });
+
+  return { success: true, message: 'Correo actualizado correctamente', email: user.email };
+}
+
+async function cambiarPassword({ usuario, payload = {} }) {
+  const { Usuario } = require('../models');
+  const bcrypt = require('bcryptjs');
+
+  const passwordActual = String(payload.passwordActual ?? payload.actual ?? '').trim();
+  const nuevaPassword = String(payload.nuevaPassword ?? payload.nueva ?? '').trim();
+  const confirmarPassword = String(
+    payload.confirmarPassword ?? payload.confirmar ?? payload.confirmacion ?? ''
+  ).trim();
+
+  if (!passwordActual || !nuevaPassword || !confirmarPassword) {
+    throw new AppError('Todos los campos son requeridos', 400);
+  }
+  if (nuevaPassword.length < 8) {
+    throw new AppError('La nueva contraseña debe tener al menos 8 caracteres', 400);
+  }
+  if (nuevaPassword !== confirmarPassword) {
+    throw new AppError('La nueva contraseña y la confirmación no coinciden', 400);
+  }
+
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+
+  const passwordValida = await bcrypt.compare(passwordActual, user.passwordHash);
+  if (!passwordValida) {
+    throw new AppError('La contraseña actual es incorrecta', 400);
+  }
+
+  const newHash = await bcrypt.hash(nuevaPassword, 12);
+  await user.update({ passwordHash: newHash });
+
+  return { success: true, message: 'Contraseña actualizada correctamente' };
+}
+
+async function eliminarCuenta({ usuario }) {
+  const { Usuario } = require('../models');
+  const user = await Usuario.findByPk(usuario.id);
+  if (!user) throw new AppError('Usuario no encontrado', 404);
+  await user.update({ activo: false });
+  return { success: true, message: 'Cuenta eliminada correctamente' };
+}
+
 module.exports = {
   listarPedidos,
   obtenerDetallePedido,
@@ -473,4 +822,13 @@ module.exports = {
   eliminarDireccion,
   serializarDireccion,
   serializarResumenPedido,
+  obtenerPerfil,
+  actualizarPerfil,
+  cambiarEmail,
+  cambiarPassword,
+  eliminarCuenta,
+  listarTarjetas,
+  agregarTarjeta,
+  eliminarTarjeta,
+  listarReclamos,
 };
