@@ -1283,10 +1283,10 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 28px;
-  padding: 6px;
+  padding: 12px;
   background: var(--lp-surface);
   border: 1px solid var(--lp-border);
-  border-radius: 999px;
+  border-radius: 30px;
   box-shadow: var(--lp-shadow-sm);
 }
 

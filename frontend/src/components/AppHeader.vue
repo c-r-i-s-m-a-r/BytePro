@@ -20,19 +20,7 @@
       </form>
 
       <!-- REQ-EMP-05 / REQ-EMP-06: Conmutador de Función Activa en el header si tiene múltiples roles -->
-      <div v-if="auth.isStaff && auth.tieneMultiplesFunciones" class="role-switcher-header">
-        <label for="header-role-switch" class="muted mr-2">Función activa:</label>
-        <select
-          id="header-role-switch"
-          class="select select-inline"
-          :value="auth.funcionActiva"
-          @change="onCambiarFuncion($event.target.value)"
-        >
-          <option v-for="r in auth.rolesDisponibles" :key="r" :value="r">
-            {{ formatRoleName(r) }}
-          </option>
-        </select>
-      </div>
+      
 
       <!-- REQ-MOB-01: Acciones móviles: carrito directo + menú hamburguesa -->
       <div class="mobile-header-actions">
@@ -129,7 +117,16 @@
             <AppIcon name="cube" :size="18" />
             Mis pedidos
           </RouterLink>
-          <span class="account-name" :title="auth.user.nombre">{{ auth.user.nombre }}</span>
+          <RouterLink
+            v-if="!auth.isStaff"
+            class="header-link account-btn"
+            :to="{ name: 'account' }"
+            :title="auth.user.nombre"
+          >
+            <img :src="userIcon" alt="Usuario" class="header-user-icon" />
+            <AppIcon name="user" :size="18" class="header-account-avatar" style="display: none;" />
+            {{ auth.user.nombre }}
+          </RouterLink>
           <RouterLink v-if="auth.isStaff" class="header-link font-semibold" to="/admin">
             Panel ({{ auth.funcionActiva }})
           </RouterLink>
@@ -229,6 +226,16 @@
           <AppIcon name="cube" :size="20" />
           <span>Mis pedidos</span>
         </RouterLink>
+        <RouterLink
+          v-if="auth.isAuthenticated"
+          class="mobile-nav-link"
+          :to="{ name: 'account' }"
+          :class="{ active: route.name === 'account' }"
+          @click="cerrarMenu"
+        >
+          <AppIcon name="user" :size="20" />
+          <span>Mi cuenta</span>
+        </RouterLink>
       </template>
 
       <template v-else>
@@ -244,7 +251,6 @@
       </template>
 
       <div v-if="auth.isStaff && auth.tieneMultiplesFunciones" class="mobile-nav-field">
-        <label for="mobile-role-switch" class="field-hint">Función activa</label>
         <select
           id="mobile-role-switch"
           class="select select-block"
@@ -258,10 +264,22 @@
       </div>
 
       <div class="mobile-nav-footer">
-        <div v-if="auth.isAuthenticated" class="mobile-nav-user">
+        <RouterLink
+          v-if="auth.isAuthenticated && !auth.isStaff"
+          :to="{ name: 'account' }"
+          class="mobile-nav-user mobile-nav-user-link"
+          @click="cerrarMenu"
+        >
+          <img :src="userIcon" alt="Usuario" class="header-user-icon mobile-user-avatar" />
+          <div class="mobile-nav-user-info">
+            <span class="mobile-nav-user-name">{{ auth.user.nombre }}</span>
+            <span class="field-hint">Mi cuenta · Cliente BytePro</span>
+          </div>
+        </RouterLink>
+        <div v-else-if="auth.isAuthenticated" class="mobile-nav-user">
           <span class="mobile-nav-user-name">{{ auth.user.nombre }}</span>
           <span class="field-hint">
-            {{ auth.isStaff ? formatRoleName(auth.funcionActiva) : 'Cliente BytePro' }}
+            {{ formatRoleName(auth.funcionActiva) }}
           </span>
         </div>
         <button
@@ -321,6 +339,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import byteproLogo from '../assets/icons/icon-bytepro.png';
+import userIcon from '../assets/icons/icon-user.png';
 import AppIcon from './AppIcon.vue';
 import CartDrawer from './CartDrawer.vue';
 import { useAuthStore } from '../store/auth';

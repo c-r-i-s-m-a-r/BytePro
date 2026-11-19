@@ -16,7 +16,6 @@
       <div class="flex-row gap-2 align-center">
         <!-- Conmutador de función activa para empleados con múltiples roles (REQ-ADM-09) -->
         <div v-if="auth.tieneMultiplesFunciones" class="flex-row gap-2 align-center">
-          <label for="portal-role-select" class="field-hint mb-0 font-semibold">Función activa:</label>
           <select
             id="portal-role-select"
             class="select select-inline"
@@ -28,7 +27,6 @@
             </option>
           </select>
         </div>
-        <span class="badge badge-stock">Función: {{ auth.funcionActiva }}</span>
       </div>
     </div>
 

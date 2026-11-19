@@ -24,6 +24,7 @@ import signOut from '../assets/icons/icon-sign-out.svg';
 import star from '../assets/icons/icon-star.svg';
 import transfer from '../assets/icons/icon-transfer.svg';
 import truckSide from '../assets/icons/icon-truck-side.svg';
+import userIcon from '../assets/icons/icon-user.png';
 
 const ICONOS = {
   'angle-left': angleLeft,
@@ -48,6 +49,7 @@ const ICONOS = {
   transfer,
   truck: truckSide,
   'truck-side': truckSide,
+  user: userIcon,
 };
 
 const props = defineProps({

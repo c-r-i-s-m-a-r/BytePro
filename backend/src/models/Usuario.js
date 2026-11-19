@@ -8,6 +8,8 @@ module.exports = (sequelize, DataTypes) => {
       passwordHash: { type: DataTypes.STRING(255), allowNull: false },
       nombre: { type: DataTypes.STRING(120), allowNull: false },
       telefono: { type: DataTypes.STRING(40), allowNull: true },
+      fotoPerfil: { type: DataTypes.TEXT, allowNull: true },
+      tarjetasGuardadas: { type: DataTypes.TEXT, allowNull: true },
       rol: {
         type: DataTypes.ENUM('cliente', 'empleado', 'vendedor', 'soporte', 'operaciones', 'admin'),
         allowNull: false,
