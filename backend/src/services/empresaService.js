@@ -6,6 +6,7 @@ const {
 } = require('../models');
 const AppError = require('../utils/AppError');
 const { round2 } = require('../utils/money');
+const { normalizarFoto } = require('../utils/imagePayload');
 
 const PRIORIDADES = ['Informativo', 'Importante', 'Urgente'];
 
@@ -14,6 +15,7 @@ const CONFIG_DEFAULT = {
   descuentoRetiroBajo: 5,
   umbralDescuentoRetiro: 500,
   moneda: 'BOB',
+  qrPagoUrl: '',
 };
 
 function serializarConfiguracion(config) {
@@ -32,7 +34,32 @@ function serializarConfiguracion(config) {
     descuentoRetiroBajo: Number(config.descuentoRetiroBajo),
     umbralDescuentoRetiro: Number(config.umbralDescuentoRetiro),
     moneda: config.moneda || 'BOB',
+    qrPagoUrl: config.qrPagoUrl || '',
   };
+}
+
+/**
+ * REQ-AJU-QR-01: el QR bancario solo admite URL http(s), Data URI de imagen
+ * válido o vacío/null para limpiar la configuración.
+ */
+function normalizarQrPagoUrl(valor) {
+  if (valor === undefined) return undefined;
+  if (valor === null) return null;
+
+  const texto = String(valor).trim();
+  if (!texto) return null;
+
+  if (/^data:/i.test(texto)) {
+    return normalizarFoto(texto);
+  }
+
+  if (!/^https?:\/\//i.test(texto) || texto.length > 2048) {
+    throw new AppError('El QR bancario debe ser una URL http(s) o una imagen válida', 400, [
+      { field: 'qrPagoUrl', message: 'URL o imagen no válida' },
+    ]);
+  }
+
+  return texto;
 }
 
 async function obtenerConfiguracion() {
@@ -91,11 +118,17 @@ async function actualizarConfiguracion(payload = {}) {
     );
   }
 
+  const qrPagoUrl =
+    payload.qrPagoUrl !== undefined
+      ? normalizarQrPagoUrl(payload.qrPagoUrl)
+      : actual.qrPagoUrl || null;
+
   if (config) {
     await config.update({
       descuentoRetiroAlto,
       descuentoRetiroBajo,
       umbralDescuentoRetiro: umbral,
+      qrPagoUrl,
     });
     return serializarConfiguracion(config);
   }
@@ -106,6 +139,7 @@ async function actualizarConfiguracion(payload = {}) {
     descuentoRetiroBajo,
     umbralDescuentoRetiro: umbral,
     moneda: 'BOB',
+    qrPagoUrl,
   });
   return serializarConfiguracion(nueva);
 }

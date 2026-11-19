@@ -430,8 +430,13 @@
 
             <template v-else-if="metodoSeleccionado === 'transferencia'">
               <div class="qr-box">
-                <span>QR de pago</span>
-                <small>Simulado para el entorno de laboratorio</small>
+                <img
+                  v-if="checkout.qrPagoUrl"
+                  :src="checkout.qrPagoUrl"
+                  alt="Código QR para transferencia bancaria"
+                  class="qr-image"
+                />
+                <span v-else>QR de pago</span>
               </div>
               <p class="field-hint text-center mb-4">
                 Escanea el QR con tu aplicación bancaria o usa los datos de la cuenta y
@@ -457,47 +462,28 @@
                 <button
                   type="button"
                   class="provider-option"
-                  :class="{ active: form.proveedor === 'stripe' }"
-                  @click="form.proveedor = 'stripe'"
+                  :class="{ active: form.proveedor === 'paypal' }"
+                  @click="form.proveedor = 'paypal'"
                 >
-                  Stripe sandbox
+                  <img :src="paypalLogo" alt="PayPal" class="provider-logo" />
+                  <span>PayPal</span>
                 </button>
                 <button
                   type="button"
                   class="provider-option"
-                  :class="{ active: form.proveedor === 'paypal' }"
-                  @click="form.proveedor = 'paypal'"
+                  :class="{ active: form.proveedor === 'gpay' }"
+                  @click="form.proveedor = 'gpay'"
                 >
-                  PayPal sandbox
+                  <img :src="gpayLogo" alt="Google Pay" class="provider-logo" />
+                  <span>Google Pay</span>
                 </button>
               </div>
-              <p class="field-hint">
-                La pasarela simulada autoriza el cobro y entrega un token antes de confirmar
-                la transacción.
-              </p>
             </template>
-
-            <div class="sandbox-panel mt-4">
-              <div class="field">
-                <label for="sandbox-sim">Entorno sandbox: simular resultado</label>
-                <select id="sandbox-sim" v-model="simulacion" class="select">
-                  <option value="aprobado">Pago aprobado</option>
-                  <option value="fondos">Rechazo: fondos insuficientes</option>
-                  <option value="fraude">Rechazo: sospecha de fraude</option>
-                  <option value="red">Rechazo: error de red</option>
-                  <option value="discrepancia">Discrepancia de monto (auditoría crítica)</option>
-                </select>
-                <p class="field-hint">
-                  Pasarela simulada. El selector permite validar los flujos de rechazo y de
-                  conciliación manual.
-                </p>
-              </div>
-            </div>
 
             <button
               class="btn btn-primary btn-block mt-4"
               type="submit"
-              :disabled="checkout.processing || enviando"
+              :disabled="checkout.processing || enviando || (metodoSeleccionado === 'pasarela' && !form.proveedor)"
             >
               <span v-if="checkout.processing || enviando" class="processing-note">
                 <span class="spinner" aria-hidden="true"></span>
@@ -561,6 +547,8 @@ import { useCartStore } from '../store/cart';
 import { useCheckoutStore } from '../store/checkout';
 import { useUiStore } from '../store/ui';
 import { formatPrice } from '../utils/format';
+import paypalLogo from '../assets/icons/paypal.png';
+import gpayLogo from '../assets/icons/gpay.png';
 import {
   formatCardNumber,
   generatePaymentToken,
@@ -602,7 +590,7 @@ const form = reactive({
   anio: '',
   cvv: '',
   referenciaComprobante: '',
-  proveedor: 'stripe',
+  proveedor: '',
 });
 const errors = reactive({});
 const restante = ref(0);
@@ -743,6 +731,9 @@ function onNumeroInput(event) {
 
 function seleccionarMetodo(id) {
   metodoSeleccionado.value = id;
+  if (id === 'pasarela') {
+    form.proveedor = '';
+  }
   limpiarErrores();
   checkout.error = null;
   checkout.errorDetails = null;
@@ -788,6 +779,8 @@ function validarFormulario() {
       errors.referenciaComprobante =
         'Ingresa la referencia del comprobante (mínimo 4 caracteres).';
     }
+  } else if (metodoSeleccionado.value === 'pasarela' && !form.proveedor) {
+    errors.proveedor = 'Selecciona PayPal o Google Pay para continuar.';
   }
 
   return Object.keys(errors).length === 0;
@@ -823,6 +816,12 @@ function construirDireccionEntrega() {
 async function pagar() {
   if (enviando.value || checkout.processing) return;
   if (!validarFormulario()) return;
+
+  if (metodoSeleccionado.value === 'pasarela') {
+    const url = form.proveedor === 'paypal' ? 'https://www.paypal.com' : 'https://pay.google.com';
+    window.open(url, '_blank');
+    return;
+  }
 
   const confirmed = await ui.confirm({
     title: 'Confirmar pago de orden',

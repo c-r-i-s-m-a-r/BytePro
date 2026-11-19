@@ -37,7 +37,7 @@ const METODOS_PAGO = [
   {
     id: 'tarjeta',
     nombre: 'Tarjeta de crédito o débito',
-    descripcion: 'Pago tokenizado. No almacenamos el número completo ni el CVV.',
+    descripcion: 'Pago con tarjeta. No almacenamos el número completo ni el CVV.',
   },
   {
     id: 'transferencia',
@@ -47,7 +47,7 @@ const METODOS_PAGO = [
   {
     id: 'pasarela',
     nombre: 'Pasarela digital',
-    descripcion: 'Stripe o PayPal en entorno sandbox simulado.',
+    descripcion: 'Acceso directo a PayPal o Google Pay en sus plataformas oficiales.',
   },
 ];
 
@@ -457,6 +457,7 @@ function serializarCheckout(checkout, venta, lineas, direccionesGuardadas = [], 
     sucursal,
     sucursales: extra.sucursales || [],
     configuracionRetiro: extra.configuracionRetiro || null,
+    qrPagoUrl: extra.qrPagoUrl || '',
     expiraEn: checkout.expiraEn,
     segundosRestantes: Math.max(
       0,
@@ -500,6 +501,7 @@ async function crearCheckout(usuario, payload = {}) {
       descuentoRetiroBajo: configuracion.descuentoRetiroBajo,
       umbralDescuentoRetiro: configuracion.umbralDescuentoRetiro,
     },
+    qrPagoUrl: configuracion.qrPagoUrl || '',
   };
   const snapshot = snapshotSucursal(sucursal);
 
@@ -828,6 +830,7 @@ async function actualizarEntrega(usuario, payload = {}) {
       descuentoRetiroBajo: configuracion.descuentoRetiroBajo,
       umbralDescuentoRetiro: configuracion.umbralDescuentoRetiro,
     },
+    qrPagoUrl: configuracion.qrPagoUrl || '',
   });
 }
 

@@ -73,6 +73,78 @@
       </button>
     </section>
 
+    <!-- QR para transacciones bancarias -->
+    <section class="card mb-6">
+      <h3 class="section-title mb-2">QR para transacciones bancarias</h3>
+      <p class="field-hint mb-4">
+        Este código QR se mostrará a los clientes cuando elijan “Transferencia bancaria” en el
+        checkout. Puedes subir una imagen o indicar una URL pública.
+      </p>
+
+      <div class="qr-admin-grid">
+        <div>
+          <div class="field">
+            <label for="qr-pago-url">URL del QR (http o https)</label>
+            <input
+              id="qr-pago-url"
+              class="input"
+              type="url"
+              maxlength="2048"
+              :value="esQrDataUri ? '' : configForm.qrPagoUrl"
+              placeholder="https://ejemplo.com/qr-bancario.png"
+              @input="onQrUrlInput"
+            />
+            <p class="field-hint">
+              Si subes una imagen, se optimiza automáticamente y reemplaza la URL manual.
+            </p>
+          </div>
+
+          <div class="field mt-3">
+            <label for="qr-pago-file">Subir imagen del QR</label>
+            <input
+              id="qr-pago-file"
+              ref="qrFileInput"
+              class="input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="comprimiendoQr"
+              @change="onQrFileChange"
+            />
+            <p class="field-hint">Formatos admitidos: PNG, JPEG o WEBP.</p>
+          </div>
+
+          <div class="flex-row gap-2 mt-4">
+            <button
+              class="btn btn-primary"
+              type="button"
+              :disabled="guardandoQr || comprimiendoQr"
+              @click="guardarQrPago()"
+            >
+              {{ guardandoQr ? 'Guardando…' : 'Guardar QR bancario' }}
+            </button>
+            <button
+              class="btn btn-tertiary"
+              type="button"
+              :disabled="!configForm.qrPagoUrl || guardandoQr || comprimiendoQr"
+              @click="quitarQr"
+            >
+              Quitar QR
+            </button>
+          </div>
+        </div>
+
+        <div class="qr-admin-preview">
+          <img
+            v-if="configForm.qrPagoUrl"
+            :src="configForm.qrPagoUrl"
+            alt="Vista previa del QR bancario"
+            class="qr-image"
+          />
+          <span v-else class="field-hint">Sin QR configurado</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Proveedores -->
     <section class="card mb-6">
       <div class="flex-between mb-4">
@@ -276,11 +348,12 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import api, { apiErrorMessage } from '../../services/api';
 import { subscribeToTables } from '../../services/realtime';
 import { useUiStore } from '../../store/ui';
 import { formatPrice } from '../../utils/format';
+import { compressImage } from '../../utils/imageCompressor';
 
 const ui = useUiStore();
 
@@ -293,8 +366,16 @@ const configForm = reactive({
   descuentoRetiroAlto: 7,
   descuentoRetiroBajo: 5,
   umbralDescuentoRetiro: 500,
+  qrPagoUrl: '',
 });
 const guardandoConfig = ref(false);
+const guardandoQr = ref(false);
+const comprimiendoQr = ref(false);
+const qrFileInput = ref(null);
+
+const esQrDataUri = computed(() =>
+  String(configForm.qrPagoUrl || '').startsWith('data:')
+);
 
 const proveedores = ref([]);
 const mostrarFormProveedor = ref(false);
@@ -335,6 +416,51 @@ function aplicarConfiguracion(config) {
   configForm.descuentoRetiroAlto = Number(config.descuentoRetiroAlto);
   configForm.descuentoRetiroBajo = Number(config.descuentoRetiroBajo);
   configForm.umbralDescuentoRetiro = Number(config.umbralDescuentoRetiro);
+  configForm.qrPagoUrl = config.qrPagoUrl || '';
+}
+
+function onQrUrlInput(event) {
+  configForm.qrPagoUrl = String(event.target.value || '').trim();
+}
+
+async function onQrFileChange(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  limpiarMensajes();
+  comprimiendoQr.value = true;
+  try {
+    configForm.qrPagoUrl = await compressImage(file, {
+      maxSide: 720,
+      maxBytes: 300 * 1024,
+    });
+  } catch (err) {
+    error.value = err.message || 'No se pudo procesar la imagen del QR.';
+  } finally {
+    comprimiendoQr.value = false;
+    if (qrFileInput.value) qrFileInput.value.value = '';
+  }
+}
+
+async function guardarQrPago(mensaje = 'QR bancario actualizado correctamente.') {
+  limpiarMensajes();
+  guardandoQr.value = true;
+  try {
+    const { data } = await api.put('/admin/ajustes', {
+      qrPagoUrl: String(configForm.qrPagoUrl || '').trim() || null,
+    });
+    aplicarConfiguracion(data.configuracion);
+    notificarExito(mensaje);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    guardandoQr.value = false;
+  }
+}
+
+async function quitarQr() {
+  configForm.qrPagoUrl = '';
+  await guardarQrPago('QR bancario eliminado correctamente.');
 }
 
 async function cargarAjustes(silencioso = false) {
@@ -569,5 +695,34 @@ onUnmounted(() => {
 
 .rounded {
   border-radius: var(--radius-md, 8px);
+}
+
+.qr-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.qr-admin-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+
+.qr-admin-preview .qr-image {
+  max-width: 100%;
+  max-height: 200px;
+}
+
+@media (max-width: 720px) {
+  .qr-admin-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -67,6 +67,7 @@ export const useCheckoutStore = defineStore('checkout', {
         descuentoRetiroBajo: 5,
         umbralDescuentoRetiro: 500,
       },
+    qrPagoUrl: (state) => (state.session && state.session.qrPagoUrl) || '',
     metodoEntrega: (state) =>
       (state.session && state.session.metodoEntrega) || 'domicilio',
     sucursal: (state) => (state.session ? state.session.sucursal : null),

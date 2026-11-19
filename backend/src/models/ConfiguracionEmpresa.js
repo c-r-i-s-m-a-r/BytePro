@@ -19,6 +19,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 500,
       },
       moneda: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'BOB' },
+      qrPagoUrl: { type: DataTypes.TEXT, allowNull: true },
     },
     { tableName: 'configuracion_empresa' }
   );

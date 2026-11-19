@@ -209,6 +209,10 @@ sequelize.addHook('afterBulkSync', async () => {
       referencia_comprobante: ' VARCHAR(120)',
     });
 
+    await ensureColumns('configuracion_empresa', {
+      qr_pago_url: ' TEXT',
+    });
+
     await ensureColumns('usuarios', {
       roles: ' TEXT',
       funcion_activa: ' VARCHAR(40)',
